@@ -1,0 +1,527 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserCategory {
+  comun
+  especial
+  plata
+  oro
+  platino
+}
+
+enum UserStatus {
+  pendiente_verificacion
+  aprobado
+  multado
+  bloqueado
+  proceso_judicial
+}
+
+enum AuctionCategory {
+  comun
+  especial
+  plata
+  oro
+  platino
+}
+
+enum AuctionStatus {
+  programada
+  activa
+  finalizada
+  cancelada
+}
+
+enum AuctionCurrency {
+  pesos
+  dolares
+}
+
+enum ItemStatus {
+  pendiente
+  en_subasta
+  vendido
+  sin_postor
+}
+
+enum PaymentMethodType {
+  cuenta_bancaria
+  tarjeta_credito
+  cheque_certificado
+}
+
+enum PaymentMethodStatus {
+  pendiente
+  verificado
+  rechazado
+  expirado
+}
+
+enum BidStatus {
+  enviada
+  confirmada
+  superada
+  rechazada
+}
+
+enum ConsignmentStatus {
+  en_evaluacion
+  aceptado
+  rechazado
+  en_deposito
+  subastado
+  vendido
+}
+
+enum InspectionResult {
+  aceptado
+  rechazado
+}
+
+enum PurchasePaymentStatus {
+  pendiente
+  pagado
+  vencido
+  judicial
+}
+
+enum PenaltyStatus {
+  pendiente
+  pagada
+  derivada_justicia
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String         @id @default(uuid())
+  email               String         @unique
+  passwordHash        String?
+  nombre              String
+  apellido            String
+  domicilio           String
+  paisOrigen          String
+  fotoDocFrenteUrl    String?
+  fotoDocDorsoUrl     String?
+  categoria           UserCategory?
+  estado              UserStatus     @default(pendiente_verificacion)
+  registroCompletado  Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  paymentMethods      PaymentMethod[]
+  auctionSessions     AuctionSession[]
+  bids                Bid[]
+  purchases           Purchase[]
+  penalties           Penalty[]
+  consignments        Consignment[]
+  notifications       Notification[]
+  insurancePolicies   InsurancePolicy[]
+  payoutAccounts      PayoutAccount[]
+  ownedItems          Item[]
+
+  @@map("users")
+}
+
+model PaymentMethod {
+  id              String              @id @default(uuid())
+  userId          String
+  tipo            PaymentMethodType
+  estado          PaymentMethodStatus @default(pendiente)
+  esInternacional Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  user            User                @relation(fields: [userId], references: [id])
+  bankAccount     BankAccount?
+  creditCard      CreditCard?
+  certifiedCheck  CertifiedCheck?
+  bids            Bid[]
+  purchases       Purchase[]
+
+  @@map("payment_methods")
+}
+
+model BankAccount {
+  id               String        @id @default(uuid())
+  paymentMethodId  String        @unique
+  banco            String
+  numeroCuenta     String
+  titular          String
+  pais             String
+  moneda           String
+  swiftBic         String?
+  iban             String?
+  fondosReservados Decimal       @default(0)
+
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("bank_accounts")
+}
+
+model CreditCard {
+  id               String        @id @default(uuid())
+  paymentMethodId  String        @unique
+  ultimosCuatro    String
+  marca            String
+  titular          String
+  mesVencimiento   Int
+  anioVencimiento  Int
+
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("credit_cards")
+}
+
+model CertifiedCheck {
+  id               String        @id @default(uuid())
+  paymentMethodId  String        @unique
+  banco            String
+  numeroCheque     String
+  monto            Decimal
+  montoDisponible  Decimal
+  fechaVencimiento DateTime
+  verificadoEn     DateTime?
+
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("certified_checks")
+}
+
+model Auctioneer {
+  id        String    @id @default(uuid())
+  nombre    String
+  apellido  String
+  matricula String?   @unique
+  createdAt DateTime  @default(now())
+
+  auctions  Auction[]
+
+  @@map("auctioneers")
+}
+
+model Auction {
+  id           String          @id @default(uuid())
+  nombre       String
+  descripcion  String?
+  fechaInicio  DateTime
+  fechaFin     DateTime?
+  categoria    AuctionCategory
+  estado       AuctionStatus   @default(programada)
+  moneda       AuctionCurrency
+  rematadorId  String?
+  ubicacion    String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  rematador    Auctioneer?     @relation(fields: [rematadorId], references: [id])
+  items        Item[]
+  sessions     AuctionSession[]
+  bids         Bid[]
+  purchases    Purchase[]
+
+  @@map("auctions")
+}
+
+model Item {
+  id                 String      @id @default(uuid())
+  numeroPieza        String
+  descripcion        String
+  precioBase         Decimal
+  duenUserId         String?
+  duenNombreExterno  String?
+  subastaId          String?
+  estado             ItemStatus  @default(pendiente)
+  esCompuesto        Boolean     @default(false)
+  esObraArte         Boolean     @default(false)
+  artistaDisenador   String?
+  fechaCreacionObra  DateTime?
+  historia           String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  duenUser           User?       @relation(fields: [duenUserId], references: [id])
+  subasta            Auction?    @relation(fields: [subastaId], references: [id])
+  components         ItemComponent[]
+  previousOwners     ItemPreviousOwner[]
+  images             ItemImage[]
+  bids               Bid[]
+  purchase           Purchase?
+  consignmentItems   ConsignmentItem[]
+
+  @@map("items")
+}
+
+model ItemComponent {
+  id           String  @id @default(uuid())
+  itemPadreId  String
+  descripcion  String
+  orden        Int
+
+  itemPadre    Item    @relation(fields: [itemPadreId], references: [id], onDelete: Cascade)
+
+  @@map("item_components")
+}
+
+model ItemPreviousOwner {
+  id          String  @id @default(uuid())
+  itemId      String
+  nombre      String
+  periodo     String?
+  descripcion String?
+  orden       Int
+
+  item        Item    @relation(fields: [itemId], references: [id])
+
+  @@map("item_previous_owners")
+}
+
+model ItemImage {
+  id      String @id @default(uuid())
+  itemId  String
+  url     String
+  orden   Int
+
+  item    Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("item_images")
+}
+
+model AuctionSession {
+  id               String    @id @default(uuid())
+  userId           String
+  auctionId        String
+  connectedAt      DateTime  @default(now())
+  disconnectedAt   DateTime?
+
+  user             User      @relation(fields: [userId], references: [id])
+  auction          Auction   @relation(fields: [auctionId], references: [id])
+
+  @@map("auction_sessions")
+}
+
+model Bid {
+  id              String    @id @default(uuid())
+  subastaId       String
+  itemId          String
+  userId          String
+  paymentMethodId String
+  monto           Decimal
+  estado          BidStatus @default(enviada)
+  createdAt       DateTime  @default(now())
+
+  subasta         Auction       @relation(fields: [subastaId], references: [id])
+  item            Item          @relation(fields: [itemId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  purchase        Purchase?
+
+  @@index([itemId, createdAt(sort: Desc)])
+  @@map("bids")
+}
+
+model Purchase {
+  id               String                @id @default(uuid())
+  itemId           String                @unique
+  subastaId        String
+  compradorUserId  String?
+  bidId            String?               @unique
+  paymentMethodId  String?
+  montoFinal       Decimal
+  comision         Decimal               @default(0)
+  costoEnvio       Decimal               @default(0)
+  retiroPersonal   Boolean               @default(false)
+  estadoPago       PurchasePaymentStatus @default(pendiente)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  item             Item          @relation(fields: [itemId], references: [id])
+  subasta          Auction       @relation(fields: [subastaId], references: [id])
+  comprador        User?         @relation(fields: [compradorUserId], references: [id])
+  bid              Bid?          @relation(fields: [bidId], references: [id])
+  paymentMethod    PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  penalty          Penalty?
+
+  @@map("purchases")
+}
+
+model Penalty {
+  id          String        @id @default(uuid())
+  userId      String
+  purchaseId  String        @unique
+  monto       Decimal
+  estado      PenaltyStatus @default(pendiente)
+  fechaLimite DateTime
+  pagadaEn    DateTime?
+
+  user        User          @relation(fields: [userId], references: [id])
+  purchase    Purchase      @relation(fields: [purchaseId], references: [id])
+
+  @@map("penalties")
+}
+
+model Consignment {
+  id                       String            @id @default(uuid())
+  userId                   String
+  descripcion              String
+  categoria                String?
+  valorEstimado            Decimal?
+  esCompuesto              Boolean           @default(false)
+  esObraArte               Boolean           @default(false)
+  artistaDisenador         String?
+  fechaCreacionObra        DateTime?
+  historia                 String?
+  declaraTitularidad       Boolean           @default(false)
+  aceptaDevolucionConCargo Boolean           @default(false)
+  estado                   ConsignmentStatus @default(en_evaluacion)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  user                     User              @relation(fields: [userId], references: [id])
+  photos                   ConsignmentPhoto[]
+  inspection               ConsignmentInspection?
+  location                 ConsignmentLocation?
+  consignmentItems         ConsignmentItem[]
+  insurancePolicies        InsurancePolicyConsignment[]
+  payoutAccounts           PayoutAccount[]
+
+  @@map("consignments")
+}
+
+model ConsignmentItem {
+  id             String      @id @default(uuid())
+  consignmentId  String
+  itemId         String
+
+  consignment    Consignment @relation(fields: [consignmentId], references: [id])
+  item           Item        @relation(fields: [itemId], references: [id])
+
+  @@unique([consignmentId, itemId])
+  @@map("consignment_items")
+}
+
+model ConsignmentPhoto {
+  id             String      @id @default(uuid())
+  consignmentId  String
+  url            String
+  orden          Int
+
+  consignment    Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+
+  @@map("consignment_photos")
+}
+
+model ConsignmentInspection {
+  id                   String           @id @default(uuid())
+  consignmentId        String           @unique
+  resultado            InspectionResult
+  motivoRechazo        String?
+  valorBaseAsignado    Decimal?
+  comisionPorcentaje   Decimal?
+  fechaSubastaEstimada DateTime?
+  userAcepta           Boolean?
+  respondidoEn         DateTime?
+  costoDevolucion      Decimal?
+
+  consignment          Consignment      @relation(fields: [consignmentId], references: [id])
+
+  @@map("consignment_inspections")
+}
+
+model Deposit {
+  id        String  @id @default(uuid())
+  nombre    String
+  direccion String
+  ciudad    String?
+  pais      String
+
+  locations ConsignmentLocation[]
+
+  @@map("deposits")
+}
+
+model ConsignmentLocation {
+  id             String      @id @default(uuid())
+  consignmentId  String      @unique
+  depositId      String
+  sector         String?
+  fechaIngreso   DateTime
+  fechaEgreso    DateTime?
+
+  consignment    Consignment @relation(fields: [consignmentId], references: [id])
+  deposit        Deposit     @relation(fields: [depositId], references: [id])
+
+  @@map("consignment_locations")
+}
+
+model InsurancePolicy {
+  id                 String    @id @default(uuid())
+  numeroPoliza       String    @unique
+  compania           String
+  telefonoCompania   String?
+  emailCompania      String?
+  beneficiarioUserId String
+  valorAsegurado     Decimal
+  fechaInicio        DateTime
+  fechaVencimiento   DateTime
+
+  beneficiario       User      @relation(fields: [beneficiarioUserId], references: [id])
+  consignments       InsurancePolicyConsignment[]
+
+  @@map("insurance_policies")
+}
+
+model InsurancePolicyConsignment {
+  id             String          @id @default(uuid())
+  policyId       String
+  consignmentId  String
+
+  policy         InsurancePolicy @relation(fields: [policyId], references: [id])
+  consignment    Consignment     @relation(fields: [consignmentId], references: [id])
+
+  @@unique([policyId, consignmentId])
+  @@map("insurance_policy_consignments")
+}
+
+model PayoutAccount {
+  id             String      @id @default(uuid())
+  userId         String
+  consignmentId  String?
+  banco          String
+  numeroCuenta   String
+  titular        String
+  pais           String
+  moneda         String
+  swiftBic       String?
+  iban           String?
+  declaradaEn    DateTime    @default(now())
+
+  user           User        @relation(fields: [userId], references: [id])
+  consignment    Consignment? @relation(fields: [consignmentId], references: [id])
+
+  @@map("payout_accounts")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  tipo      String
+  titulo    String
+  cuerpo    String
+  leida     Boolean   @default(false)
+  leidaEn   DateTime?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
