@@ -7,7 +7,7 @@ const schema = z.object({
   banco: z.string().min(1),
   numeroCuenta: z.string().min(1),
   titular: z.string().min(1),
-  pais: z.string().min(1),
+  numeroPaisId: z.number().int().positive(),
   moneda: z.string().min(1),
   swiftBic: z.string().optional(),
   iban: z.string().optional(),
@@ -39,6 +39,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const parsed = schema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ data: null, error: parsed.error.flatten().fieldErrors }, { status: 422 })
+    }
+
+    const pais = await prisma.pais.findUnique({ where: { numero: parsed.data.numeroPaisId } })
+    if (!pais) {
+      return NextResponse.json({ data: null, error: { numeroPaisId: ['País no encontrado'] } }, { status: 422 })
     }
 
     const account = await prisma.payoutAccount.create({

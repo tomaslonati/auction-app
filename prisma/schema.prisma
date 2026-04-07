@@ -101,32 +101,104 @@ enum PenaltyStatus {
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
-model User {
-  id                  String         @id @default(uuid())
-  email               String         @unique
-  passwordHash        String?
-  nombre              String
-  apellido            String
-  domicilio           String
-  paisOrigen          String
-  fotoDocFrenteUrl    String?
-  fotoDocDorsoUrl     String?
-  categoria           UserCategory?
-  estado              UserStatus     @default(pendiente_verificacion)
-  registroCompletado  Boolean        @default(false)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+// ── schemaReal: paises ────────────────────────────────────────────────────────
+model Pais {
+  numero       Int     @id
+  nombre       String
+  nombreCorto  String?
+  capital      String
+  nacionalidad String
+  idiomas      String
 
-  paymentMethods      PaymentMethod[]
-  auctionSessions     AuctionSession[]
-  bids                Bid[]
-  purchases           Purchase[]
-  penalties           Penalty[]
-  consignments        Consignment[]
-  notifications       Notification[]
-  insurancePolicies   InsurancePolicy[]
-  payoutAccounts      PayoutAccount[]
-  ownedItems          Item[]
+  users          User[]
+  bankAccounts   BankAccount[]   @relation("BankAccountPais")
+  payoutAccounts PayoutAccount[] @relation("PayoutAccountPais")
+  deposits       Deposit[]       @relation("DepositPais")
+
+  @@map("paises")
+}
+
+// ── schemaReal: sectores ──────────────────────────────────────────────────────
+model Sector {
+  id                  String     @id @default(uuid())
+  nombreSector        String
+  codigoSector        String?
+  responsableSectorId String?
+
+  responsable         Empleado?  @relation("SectorResponsable", fields: [responsableSectorId], references: [id])
+  empleados           Empleado[] @relation("EmpleadoSector")
+
+  @@map("sectores")
+}
+
+// ── schemaReal: empleados ─────────────────────────────────────────────────────
+model Empleado {
+  id        String  @id @default(uuid())
+  documento String
+  nombre    String
+  direccion String?
+  cargo     String?
+  sectorId  String?
+
+  sector                 Sector?    @relation("EmpleadoSector", fields: [sectorId], references: [id])
+  sectorResponsable      Sector[]   @relation("SectorResponsable")
+  clientesVerificados    User[]     @relation("ClienteVerificador")
+  itemsRevisados         Item[]     @relation("ItemRevisor")
+  catalogosResponsables  Catalogo[] @relation("CatalogoResponsable")
+
+  @@map("empleados")
+}
+
+// ── schemaReal: catalogos ─────────────────────────────────────────────────────
+model Catalogo {
+  id            String   @id @default(uuid())
+  descripcion   String
+  subastaId     String?
+  responsableId String
+
+  subasta       Auction?  @relation(fields: [subastaId], references: [id])
+  responsable   Empleado  @relation("CatalogoResponsable", fields: [responsableId], references: [id])
+  items         Item[]
+
+  @@map("catalogos")
+}
+
+model User {
+  id                    String        @id @default(uuid())
+  email                 String        @unique
+  passwordHash          String?
+  nombre                String
+  apellido              String
+  domicilio             String
+  fotoDocFrenteUrl      String?
+  fotoDocDorsoUrl       String?
+  categoria             UserCategory?
+  estado                UserStatus    @default(pendiente_verificacion)
+  registroCompletado    Boolean       @default(false)
+  // ── schemaReal: personas / clientes / duenios ──
+  documento             String?
+  admitido              Boolean?
+  numeroPais            Int?
+  verificadorId         String?
+  // duenios
+  verificacionFinanciera Boolean?
+  verificacionJudicial   Boolean?
+  calificacionRiesgo     Int?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  pais                  Pais?         @relation(fields: [numeroPais], references: [numero])
+  verificador           Empleado?     @relation("ClienteVerificador", fields: [verificadorId], references: [id])
+  paymentMethods        PaymentMethod[]
+  auctionSessions       AuctionSession[]
+  bids                  Bid[]
+  purchases             Purchase[]
+  penalties             Penalty[]
+  consignments          Consignment[]
+  notifications         Notification[]
+  insurancePolicies     InsurancePolicy[]
+  payoutAccounts        PayoutAccount[]
+  ownedItems            Item[]
 
   @@map("users")
 }
@@ -156,13 +228,15 @@ model BankAccount {
   banco            String
   numeroCuenta     String
   titular          String
-  pais             String
+  pais             String?
+  numeroPaisId     Int?
   moneda           String
   swiftBic         String?
   iban             String?
   fondosReservados Decimal       @default(0)
 
   paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  paisRef          Pais?         @relation("BankAccountPais", fields: [numeroPaisId], references: [numero])
 
   @@map("bank_accounts")
 }
@@ -201,6 +275,7 @@ model Auctioneer {
   nombre    String
   apellido  String
   matricula String?   @unique
+  region    String?
   createdAt DateTime  @default(now())
 
   auctions  Auction[]
@@ -217,16 +292,23 @@ model Auction {
   categoria    AuctionCategory
   estado       AuctionStatus   @default(programada)
   moneda       AuctionCurrency
-  rematadorId  String?
-  ubicacion    String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  rematadorId         String?
+  ubicacion           String?
+  streamingUrl        String?
+  // ── schemaReal: subastas ──
+  hora                String?
+  capacidadAsistentes Int?
+  tieneDeposito       Boolean?
+  seguridadPropia     Boolean?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   rematador    Auctioneer?     @relation(fields: [rematadorId], references: [id])
   items        Item[]
   sessions     AuctionSession[]
   bids         Bid[]
   purchases    Purchase[]
+  catalogos    Catalogo[]
 
   @@map("auctions")
 }
@@ -245,11 +327,23 @@ model Item {
   artistaDisenador   String?
   fechaCreacionObra  DateTime?
   historia           String?
+  // ── schemaReal: productos / itemsCatalogo ──
+  fecha              DateTime?
+  disponible         Boolean?
+  descripcionCatalogo String?
+  descripcionCompleta String?
+  seguroId           String?
+  revisorId          String?
+  catalogoId         String?
+  comision           Decimal?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  duenUser           User?       @relation(fields: [duenUserId], references: [id])
-  subasta            Auction?    @relation(fields: [subastaId], references: [id])
+  duenUser           User?             @relation(fields: [duenUserId], references: [id])
+  subasta            Auction?          @relation(fields: [subastaId], references: [id])
+  seguro             InsurancePolicy?  @relation(fields: [seguroId], references: [id])
+  revisor            Empleado?         @relation("ItemRevisor", fields: [revisorId], references: [id])
+  catalogo           Catalogo?         @relation(fields: [catalogoId], references: [id])
   components         ItemComponent[]
   previousOwners     ItemPreviousOwner[]
   images             ItemImage[]
@@ -290,6 +384,8 @@ model ItemImage {
   url     String
   orden   Int
 
+  createdAt DateTime @default(now())
+
   item    Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@map("item_images")
@@ -299,6 +395,8 @@ model AuctionSession {
   id               String    @id @default(uuid())
   userId           String
   auctionId        String
+  // ── schemaReal: asistentes ──
+  numeroPostor     Int?
   connectedAt      DateTime  @default(now())
   disconnectedAt   DateTime?
 
@@ -316,6 +414,8 @@ model Bid {
   paymentMethodId String
   monto           Decimal
   estado          BidStatus @default(enviada)
+  // ── schemaReal: pujos ──
+  ganador         Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
   subasta         Auction       @relation(fields: [subastaId], references: [id])
@@ -332,9 +432,9 @@ model Purchase {
   id               String                @id @default(uuid())
   itemId           String                @unique
   subastaId        String
-  compradorUserId  String?
-  bidId            String?               @unique
-  paymentMethodId  String?
+  compradorUserId  String
+  bidId            String                @unique
+  paymentMethodId  String
   montoFinal       Decimal
   comision         Decimal               @default(0)
   costoEnvio       Decimal               @default(0)
@@ -345,9 +445,9 @@ model Purchase {
 
   item             Item          @relation(fields: [itemId], references: [id])
   subasta          Auction       @relation(fields: [subastaId], references: [id])
-  comprador        User?         @relation(fields: [compradorUserId], references: [id])
-  bid              Bid?          @relation(fields: [bidId], references: [id])
-  paymentMethod    PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  comprador        User          @relation(fields: [compradorUserId], references: [id])
+  bid              Bid           @relation(fields: [bidId], references: [id])
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
   penalty          Penalty?
 
   @@map("purchases")
@@ -361,6 +461,7 @@ model Penalty {
   estado      PenaltyStatus @default(pendiente)
   fechaLimite DateTime
   pagadaEn    DateTime?
+  createdAt   DateTime      @default(now())
 
   user        User          @relation(fields: [userId], references: [id])
   purchase    Purchase      @relation(fields: [purchaseId], references: [id])
@@ -437,13 +538,16 @@ model ConsignmentInspection {
 }
 
 model Deposit {
-  id        String  @id @default(uuid())
-  nombre    String
-  direccion String
-  ciudad    String?
-  pais      String
+  id           String   @id @default(uuid())
+  nombre       String
+  direccion    String
+  ciudad       String?
+  pais         String?
+  numeroPaisId Int?
+  createdAt    DateTime @default(now())
 
   locations ConsignmentLocation[]
+  paisRef   Pais?                 @relation("DepositPais", fields: [numeroPaisId], references: [numero])
 
   @@map("deposits")
 }
@@ -455,6 +559,7 @@ model ConsignmentLocation {
   sector         String?
   fechaIngreso   DateTime
   fechaEgreso    DateTime?
+  createdAt      DateTime    @default(now())
 
   consignment    Consignment @relation(fields: [consignmentId], references: [id])
   deposit        Deposit     @relation(fields: [depositId], references: [id])
@@ -468,13 +573,18 @@ model InsurancePolicy {
   compania           String
   telefonoCompania   String?
   emailCompania      String?
+  // ── schemaReal: seguros ──
+  polizaCombinada    Boolean?
   beneficiarioUserId String
   valorAsegurado     Decimal
   fechaInicio        DateTime
   fechaVencimiento   DateTime
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   beneficiario       User      @relation(fields: [beneficiarioUserId], references: [id])
   consignments       InsurancePolicyConsignment[]
+  items              Item[]
 
   @@map("insurance_policies")
 }
@@ -498,14 +608,16 @@ model PayoutAccount {
   banco          String
   numeroCuenta   String
   titular        String
-  pais           String
+  pais           String?
+  numeroPaisId   Int?
   moneda         String
   swiftBic       String?
   iban           String?
   declaradaEn    DateTime    @default(now())
 
-  user           User        @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
   consignment    Consignment? @relation(fields: [consignmentId], references: [id])
+  paisRef        Pais?        @relation("PayoutAccountPais", fields: [numeroPaisId], references: [numero])
 
   @@map("payout_accounts")
 }

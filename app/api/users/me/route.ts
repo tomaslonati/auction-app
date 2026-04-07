@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       where: { id: userId },
       select: {
         id: true, email: true, nombre: true, apellido: true,
-        domicilio: true, paisOrigen: true, categoria: true,
+        domicilio: true, numeroPais: true, categoria: true,
         estado: true, registroCompletado: true, createdAt: true,
         penalties: { where: { estado: 'pendiente' }, select: { id: true, monto: true, fechaLimite: true } },
       },
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 const updateSchema = z.object({
   domicilio: z.string().min(1).optional(),
-  paisOrigen: z.string().min(1).optional(),
+  numeroPais: z.number().int().positive().optional(),
 })
 
 export async function PUT(request: NextRequest) {
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
     const user = await prisma.user.update({
       where: { id: userId },
       data: parsed.data,
-      select: { id: true, domicilio: true, paisOrigen: true },
+      select: { id: true, domicilio: true, numeroPais: true },
     })
 
     return NextResponse.json({ data: user, error: null })

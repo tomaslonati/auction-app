@@ -8,6 +8,7 @@ const PUBLIC_ROUTES: { method: string; path: string }[] = [
   { method: 'POST', path: '/api/auth/register/step1' },
   { method: 'GET', path: '/api/swagger' },
   { method: 'POST', path: '/api/auth/password/forgot' },
+  { method: 'POST', path: '/api/auth/register/complete' },
 ]
 
 function isPublicRoute(method: string, pathname: string): boolean {

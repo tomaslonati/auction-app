@@ -41,7 +41,7 @@ export async function POST(
       orderBy: { monto: 'desc' },
     })
 
-    let purchase
+    let purchase: Awaited<ReturnType<typeof prisma.purchase.create>> | null = null
 
     if (topBid) {
       // Mark all other confirmed bids as superada
@@ -111,16 +111,7 @@ export async function POST(
         })
       }
     } else {
-      // No bids — company buys
-      purchase = await prisma.purchase.create({
-        data: {
-          itemId,
-          subastaId: auctionId,
-          montoFinal: item.precioBase,
-          comision,
-          costoEnvio,
-        },
-      })
+      // No bids — just mark the item, no Purchase record
       await prisma.item.update({ where: { id: itemId }, data: { estado: 'sin_postor' } })
     }
 

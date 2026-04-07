@@ -54,13 +54,13 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['email', 'nombre', 'apellido', 'domicilio', 'paisOrigen'],
+                  required: ['email', 'nombre', 'apellido', 'domicilio', 'numeroPais'],
                   properties: {
                     email: { type: 'string', format: 'email' },
                     nombre: { type: 'string' },
                     apellido: { type: 'string' },
                     domicilio: { type: 'string' },
-                    paisOrigen: { type: 'string' },
+                    numeroPais: { type: 'integer', description: 'Número de país (FK a tabla paises)' },
                     fotoDocFrenteUrl: { type: 'string', format: 'uri' },
                     fotoDocDorsoUrl: { type: 'string', format: 'uri' },
                   },
@@ -94,8 +94,11 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['password'],
-                  properties: { password: { type: 'string', minLength: 8 } },
+                  required: ['userId', 'password'],
+                  properties: {
+                    userId: { type: 'string', format: 'uuid' },
+                    password: { type: 'string', minLength: 8 },
+                  },
                 },
               },
             },
@@ -173,7 +176,7 @@ export function getSwaggerSpec() {
           tags: ['Profile'],
           summary: 'Actualizar domicilio y país',
           requestBody: {
-            content: { 'application/json': { schema: { type: 'object', properties: { domicilio: { type: 'string' }, paisOrigen: { type: 'string' } } } } },
+            content: { 'application/json': { schema: { type: 'object', properties: { domicilio: { type: 'string' }, numeroPais: { type: 'integer', description: 'Número de país (FK a tabla paises)' } } } } },
           },
           responses: { 200: { description: 'Perfil actualizado' }, 422: { description: 'Validation error' } },
         },
@@ -211,10 +214,10 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['banco', 'numeroCuenta', 'titular', 'pais', 'moneda'],
+                  required: ['banco', 'numeroCuenta', 'titular', 'numeroPaisId', 'moneda'],
                   properties: {
                     banco: { type: 'string' }, numeroCuenta: { type: 'string' },
-                    titular: { type: 'string' }, pais: { type: 'string' },
+                    titular: { type: 'string' }, numeroPaisId: { type: 'integer', description: 'Número de país (FK a tabla paises)' },
                     moneda: { type: 'string' }, swiftBic: { type: 'string' }, iban: { type: 'string' },
                   },
                 },
@@ -581,10 +584,10 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['banco', 'numeroCuenta', 'titular', 'pais', 'moneda'],
+                  required: ['banco', 'numeroCuenta', 'titular', 'numeroPaisId', 'moneda'],
                   properties: {
                     banco: { type: 'string' }, numeroCuenta: { type: 'string' },
-                    titular: { type: 'string' }, pais: { type: 'string' }, moneda: { type: 'string' },
+                    titular: { type: 'string' }, numeroPaisId: { type: 'integer', description: 'Número de país (FK a tabla paises)' }, moneda: { type: 'string' },
                     swiftBic: { type: 'string' }, iban: { type: 'string' },
                   },
                 },

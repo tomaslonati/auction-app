@@ -1,0 +1,7 @@
+-- align_schema_real: applied manually via Supabase SQL editor
+-- New tables: paises, sectores, empleados, catalogos
+-- New columns on: users, auctioneers, auctions, items, insurance_policies,
+--                 auction_sessions, bids, deposits, consignment_locations,
+--                 item_images, penalties
+-- Constraints: one_active_session_per_user (EXCLUDE), dueno_check (CHECK)
+-- purchases: comprador/bid/paymentMethod set NOT NULL
