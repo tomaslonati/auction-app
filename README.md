@@ -1,5 +1,56 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Testing
+
+El proyecto usa [Vitest](https://vitest.dev/) para tests unitarios e integrales.
+
+### Tests unitarios
+
+Cubren los 47 route handlers de la API con mocks de Prisma, Supabase y email. No requieren DB ni servidor levantado.
+
+```bash
+npm test                  # corre todos los tests unitarios
+npm run test:watch        # modo watch (re-corre al guardar)
+npm run test:coverage     # genera reporte de cobertura en /coverage
+```
+
+### Tests de integración
+
+Corren contra el servidor real en `http://localhost:3000`. Requieren tener el servidor levantado en otra terminal.
+
+```bash
+# Terminal 1
+npm run dev
+
+# Terminal 2
+npm run test:integration
+```
+
+Algunos tests con token válido leen la variable de entorno `TEST_AUTH_TOKEN`. Si no está definida, esos casos se saltean automáticamente.
+
+### Estructura
+
+```
+__tests__/
+  setup.ts                  # mocks globales (Prisma, Supabase, email, next/server)
+  helpers.ts                # makeRequest() / makeAuthRequest()
+  unit/
+    auth/                   # register-step1, register-complete, login, logout, password-*
+    users/                  # me, me-password, me-metrics, me-notifications, me-participations,
+                            # me-penalties, me-payment-methods*
+    auctions/               # auctions, auctions-id, catalog, catalog-item, bids, join, leave,
+                            # current-item
+    consignments/           # consignments, consignments-id, photos, declaration,
+                            # inspection-response, insurance, location, payout-account
+    purchases/              # purchases-id, purchases-pickup
+    admin/                  # users-category, payment-methods-verify, consignments-inspect,
+                            # consignments-assign-auction, auctions-adjudicate
+    storage/                # upload-url
+  integration/
+    auth.integration.test.ts
+    auctions.integration.test.ts
+```
+
 ## Getting Started
 
 First, run the development server:

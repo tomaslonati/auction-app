@@ -706,6 +706,53 @@ export function getSwaggerSpec() {
           responses: { 200: { description: 'Usuario actualizado' }, 404: { description: 'Not found' } },
         },
       },
+      '/storage/upload-url': {
+        post: {
+          tags: ['Storage'],
+          summary: 'Obtener URL firmada para subir imagen',
+          description: 'Devuelve una `uploadUrl` pre-firmada para hacer PUT directo a Supabase Storage. Usar la `publicUrl` devuelta para referenciar la imagen en otros endpoints.',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['filename', 'contentType'],
+                  properties: {
+                    filename: { type: 'string', example: 'foto.jpg' },
+                    contentType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+                    folder: { type: 'string', enum: ['consignments', 'items', 'docs'], default: 'consignments' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'URL firmada generada',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'object',
+                        properties: {
+                          uploadUrl: { type: 'string', format: 'uri' },
+                          token: { type: 'string' },
+                          path: { type: 'string' },
+                          publicUrl: { type: 'string', format: 'uri' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            422: { description: 'Validation error' },
+          },
+        },
+      },
       '/auctions/{id}/live': {
         get: {
           tags: ['Auctions'],
