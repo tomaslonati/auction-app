@@ -16,6 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       where: { id },
       include: {
         rematador: true,
+        specs: { select: { clave: true, valor: true } },
         _count: { select: { items: true } },
       },
     })

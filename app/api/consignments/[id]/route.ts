@@ -11,6 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       where: { id, userId },
       include: {
         photos: { orderBy: { orden: 'asc' } },
+        specs: { select: { clave: true, valor: true } },
         inspection: true,
         location: { include: { deposit: true } },
         consignmentItems: { include: { item: true } },

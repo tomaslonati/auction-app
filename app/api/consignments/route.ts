@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+const specSchema = z.object({ clave: z.string().min(1), valor: z.string().min(1) })
+
 const schema = z.object({
   descripcion: z.string().min(1),
   categoria: z.string().optional(),
@@ -12,6 +14,7 @@ const schema = z.object({
   artistaDisenador: z.string().optional(),
   fechaCreacionObra: z.string().datetime().optional(),
   historia: z.string().optional(),
+  specs: z.array(specSchema).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -20,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const consignments = await prisma.consignment.findMany({
       where: { userId },
-      include: { photos: { select: { url: true, orden: true } }, inspection: true },
+      include: { photos: { select: { url: true, orden: true } }, specs: { select: { clave: true, valor: true } }, inspection: true },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: null, error: parsed.error.flatten().fieldErrors }, { status: 422 })
     }
 
-    const { descripcion, categoria, valorEstimado, esCompuesto, esObraArte, artistaDisenador, fechaCreacionObra, historia } = parsed.data
+    const { descripcion, categoria, valorEstimado, esCompuesto, esObraArte, artistaDisenador, fechaCreacionObra, historia, specs } = parsed.data
 
     const consignment = await prisma.consignment.create({
       data: {
@@ -54,7 +57,9 @@ export async function POST(request: NextRequest) {
         artistaDisenador,
         fechaCreacionObra: fechaCreacionObra ? new Date(fechaCreacionObra) : undefined,
         historia,
+        ...(specs ? { specs: { createMany: { data: specs } } } : {}),
       },
+      include: { specs: { select: { clave: true, valor: true } } },
     })
 
     return NextResponse.json({ data: consignment, error: null }, { status: 201 })

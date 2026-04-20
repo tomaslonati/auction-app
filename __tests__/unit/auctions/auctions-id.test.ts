@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { makeRequest } from '../../helpers'
 
 const params = { params: Promise.resolve({ id: 'a1' }) }
-const mockAuction = { id: 'a1', nombre: 'Subasta 1', categoria: 'comun', estado: 'programada', rematador: null, _count: { items: 3 } }
+const mockAuction = { id: 'a1', nombre: 'Subasta 1', categoria: 'comun', estado: 'programada', rematador: null, specs: [{ clave: 'Material', valor: 'Madera' }], _count: { items: 3 } }
 
 describe('GET /api/auctions/[id]', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -18,6 +18,7 @@ describe('GET /api/auctions/[id]', () => {
     expect(res.status).toBe(200)
     expect(body.data.id).toBe('a1')
     expect(body.data.canJoin).toBe(false)
+    expect(body.data.specs).toEqual([{ clave: 'Material', valor: 'Madera' }])
   })
 
   it('404 — no encontrada', async () => {

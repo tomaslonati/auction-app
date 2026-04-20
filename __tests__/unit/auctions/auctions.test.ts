@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { makeRequest } from '../../helpers'
 
 const mockAuctions = [
-  { id: 'a1', nombre: 'Subasta 1', estado: 'programada', categoria: 'comun', rematador: null, items: [], _count: { items: 0 } },
+  { id: 'a1', nombre: 'Subasta 1', estado: 'programada', categoria: 'comun', rematador: null, specs: [], items: [], _count: { items: 0 } },
 ]
 
 describe('GET /api/auctions', () => {

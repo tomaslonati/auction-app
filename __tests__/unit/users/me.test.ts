@@ -43,8 +43,24 @@ describe('PUT /api/users/me', () => {
     expect(body.data.domicilio).toBe('Nueva calle')
   })
 
+  it('200 — actualiza fotos de documento', async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({ id: 'user-test-id' } as any)
+
+    const res = await PUT(makeAuthRequest('PUT', '/api/users/me', {
+      fotoDocFrenteUrl: 'https://supabase.co/storage/frente.jpg',
+      fotoDocDorsoUrl: 'https://supabase.co/storage/dorso.jpg',
+    }))
+
+    expect(res.status).toBe(200)
+  })
+
   it('422 — domicilio vacío', async () => {
     const res = await PUT(makeAuthRequest('PUT', '/api/users/me', { domicilio: '' }))
+    expect(res.status).toBe(422)
+  })
+
+  it('422 — URL de foto inválida', async () => {
+    const res = await PUT(makeAuthRequest('PUT', '/api/users/me', { fotoDocFrenteUrl: 'no-es-url' }))
     expect(res.status).toBe(422)
   })
 })

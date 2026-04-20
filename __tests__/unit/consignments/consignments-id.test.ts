@@ -10,7 +10,7 @@ describe('GET /api/consignments/[id]', () => {
 
   it('200 — retorna consignación', async () => {
     vi.mocked(prisma.consignment.findFirst).mockResolvedValue({
-      id: 'c1', descripcion: 'Reloj', estado: 'en_evaluacion', photos: [], inspection: null, location: null, consignmentItems: [],
+      id: 'c1', descripcion: 'Reloj', estado: 'en_evaluacion', photos: [], specs: [{ clave: 'Material', valor: 'Oro' }], inspection: null, location: null, consignmentItems: [],
     } as any)
 
     const res = await GET(makeAuthRequest('GET', '/api/consignments/c1'), params)
@@ -18,6 +18,7 @@ describe('GET /api/consignments/[id]', () => {
 
     expect(res.status).toBe(200)
     expect(body.data.id).toBe('c1')
+    expect(body.data.specs).toEqual([{ clave: 'Material', valor: 'Oro' }])
   })
 
   it('404 — no encontrada', async () => {

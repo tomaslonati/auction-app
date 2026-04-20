@@ -23,7 +23,9 @@ vi.mock('@/lib/prisma', () => ({
     consignmentInspection: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     consignmentLocation: { findUnique: vi.fn(), create: vi.fn() },
     consignmentPhoto: { createMany: vi.fn(), count: vi.fn() },
+    consignmentSpec: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
     consignmentItem: { create: vi.fn() },
+    auctionSpec: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
     insurancePolicy: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     insurancePolicyConsignment: { findMany: vi.fn(), create: vi.fn() },
     payoutAccount: { create: vi.fn() },
@@ -53,7 +55,10 @@ vi.mock('@supabase/supabase-js', () => ({
       },
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-test-id', app_metadata: {} } }, error: null }),
       signInWithPassword: vi.fn().mockResolvedValue({
-        data: { session: { access_token: 'mock-token', refresh_token: 'mock-refresh' } },
+        data: {
+          session: { access_token: 'mock-token', refresh_token: 'mock-refresh' },
+          user: { id: 'user-test-id', email: 'test@test.com' },
+        },
         error: null,
       }),
       signOut: vi.fn().mockResolvedValue({ error: null }),

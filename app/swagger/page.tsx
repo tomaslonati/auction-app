@@ -7,7 +7,7 @@ const SwaggerUI = dynamic(() => import('swagger-ui-react'), { ssr: false })
 
 export default function SwaggerPage() {
   return (
-    <div style={{ padding: '1rem' }}>
+    <div style={{ padding: '1rem', colorScheme: 'light', background: '#fff', minHeight: '100vh' }}>
       <SwaggerUI url="/api/swagger" />
     </div>
   )

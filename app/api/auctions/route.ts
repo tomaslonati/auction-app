@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         rematador: true,
+        specs: { select: { clave: true, valor: true } },
         items: {
           select: {
             id: true,

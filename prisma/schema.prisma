@@ -170,6 +170,7 @@ model User {
   nombre                String
   apellido              String
   domicilio             String
+  fotoPerfilUrl         String?
   fotoDocFrenteUrl      String?
   fotoDocDorsoUrl       String?
   categoria             UserCategory?
@@ -309,8 +310,21 @@ model Auction {
   bids         Bid[]
   purchases    Purchase[]
   catalogos    Catalogo[]
+  specs        AuctionSpec[]
 
   @@map("auctions")
+}
+
+model AuctionSpec {
+  id         String  @id @default(uuid())
+  auctionId  String
+  clave      String
+  valor      String
+
+  auction    Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@unique([auctionId, clave])
+  @@map("auction_specs")
 }
 
 model Item {
@@ -493,8 +507,21 @@ model Consignment {
   consignmentItems         ConsignmentItem[]
   insurancePolicies        InsurancePolicyConsignment[]
   payoutAccounts           PayoutAccount[]
+  specs                    ConsignmentSpec[]
 
   @@map("consignments")
+}
+
+model ConsignmentSpec {
+  id             String      @id @default(uuid())
+  consignmentId  String
+  clave          String
+  valor          String
+
+  consignment    Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([consignmentId, clave])
+  @@map("consignment_specs")
 }
 
 model ConsignmentItem {

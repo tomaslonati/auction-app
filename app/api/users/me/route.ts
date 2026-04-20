@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         id: true, email: true, nombre: true, apellido: true,
         domicilio: true, numeroPais: true, categoria: true,
         estado: true, registroCompletado: true, createdAt: true,
+        fotoPerfilUrl: true,
         penalties: { where: { estado: 'pendiente' }, select: { id: true, monto: true, fechaLimite: true } },
       },
     })
@@ -35,6 +36,9 @@ export async function GET(request: NextRequest) {
 const updateSchema = z.object({
   domicilio: z.string().min(1).optional(),
   numeroPais: z.number().int().positive().optional(),
+  fotoPerfilUrl: z.string().url().optional(),
+  fotoDocFrenteUrl: z.string().url().optional(),
+  fotoDocDorsoUrl: z.string().url().optional(),
 })
 
 export async function PUT(request: NextRequest) {
