@@ -69,6 +69,95 @@ La API se documenta automáticamente con **Swagger** (`/swagger`), lo que permit
 
 ---
 
+## Correr el stack completo (backend + app mobile)
+
+El proyecto tiene dos partes: el backend Next.js y la app mobile Expo. Para probar el flujo completo necesitás levantar ambos.
+
+### Requisitos de red
+
+- El dispositivo móvil y la Mac deben estar en la **misma red** (WiFi o hotspot compartido desde el celular).
+- Obtené la IP local de la Mac:
+  ```bash
+  ipconfig getifaddr en0   # WiFi
+  ipconfig getifaddr en1   # Ethernet / hotspot iPhone
+  ```
+- Usá esa IP en `mobile/.env` como `EXPO_PUBLIC_API_URL`.
+
+### Terminal 1 — Backend
+
+```bash
+# Desde /auction-app
+npm install
+npx prisma migrate deploy   # primera vez
+npx tsx prisma/seed.ts      # datos de prueba (primera vez)
+
+npx next dev -H 0.0.0.0     # escucha en todas las interfaces (necesario para dispositivo físico)
+```
+
+> El flag `-H 0.0.0.0` es obligatorio para que el celular pueda alcanzar el servidor.  
+> La API queda en `http://<tu-ip>:3000` y en `http://localhost:3000/swagger`.
+
+### Terminal 2 — App mobile
+
+```bash
+cd mobile
+npm install      # primera vez
+
+# Editá mobile/.env con la IP de tu Mac:
+# EXPO_PUBLIC_API_URL=http://<tu-ip>:3000
+
+npm start        # abre Expo Go en el dispositivo escaneando el QR
+# o
+npm run ios      # simulador iOS (usa localhost, no necesita cambiar la IP)
+```
+
+### Configuración de Supabase Storage (una sola vez)
+
+Ejecutá esto en el **SQL Editor** del dashboard de Supabase:
+
+```sql
+-- Bucket público para imágenes
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('auction-images', 'auction-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Subidas anónimas a docs/ (registro sin sesión)
+CREATE POLICY "anon can upload docs"
+ON storage.objects FOR INSERT TO anon
+WITH CHECK (bucket_id = 'auction-images' AND (storage.foldername(name))[1] = 'docs');
+
+-- Lectura pública
+CREATE POLICY "public read"
+ON storage.objects FOR SELECT TO public
+USING (bucket_id = 'auction-images');
+```
+
+### Flujo de prueba completo
+
+```
+1. Abrí la app → ingresá un email nuevo → "Continuar"
+   → te lleva al registro (P-02 y P-03)
+
+2. Completá datos personales + fotos del DNI → "Enviar solicitud"
+   → el usuario queda en estado "pendiente_verificacion"
+
+3. Aprobá el usuario manualmente (desde Supabase o Swagger):
+   PUT /api/admin/users/{userId}/category  (requiere token de admin)
+   → cambia estado a "aprobado"
+
+4. Volvé a la app → ingresá el mismo email → "Continuar"
+   → detecta "needs_password" → pantalla para crear contraseña
+
+5. Creá la contraseña → login automático → accedés al home
+
+Usuarios de prueba del seed:
+  alice@auction.test   /  alice1234!   (aprobada, categoría platino)
+  bob@auction.test     /  bob12345!    (aprobado)
+  charlie@auction.test /  charlie123!  (aprobado)
+```
+
+---
+
 ## Requisitos previos
 
 Antes de correr el proyecto es necesario tener instalado en la máquina:
