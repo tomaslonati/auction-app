@@ -15,8 +15,9 @@ const schema = z.object({
   apellido: z.string().min(1),
   domicilio: z.string().min(1),
   numeroPais: z.number().int().positive(),
-  fotoDocFrenteUrl: z.string().url().optional(),
-  fotoDocDorsoUrl: z.string().url().optional(),
+  documento: z.string().min(1),
+  fotoDocFrenteUrl: z.string().url(),
+  fotoDocDorsoUrl: z.string().url(),
 })
 
 export async function POST(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, nombre, apellido, domicilio, numeroPais, fotoDocFrenteUrl, fotoDocDorsoUrl } =
+    const { email, nombre, apellido, domicilio, numeroPais, documento, fotoDocFrenteUrl, fotoDocDorsoUrl } =
       parsed.data
 
     // Validate that the pais exists
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         apellido,
         domicilio,
         numeroPais,
+        documento,
         fotoDocFrenteUrl,
         fotoDocDorsoUrl,
         estado: 'pendiente_verificacion',

@@ -4,8 +4,9 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 const schema = z.object({
-  declaraTitularidad: z.literal(true),
-  aceptaDevolucionConCargo: z.literal(true),
+  declaraTitularidad: z.literal(true, { errorMap: () => ({ message: 'Debe declarar titularidad del bien' }) }),
+  declaraOrigenLicito: z.literal(true, { errorMap: () => ({ message: 'Debe declarar el origen lícito del bien' }) }),
+  aceptaDevolucionConCargo: z.literal(true, { errorMap: () => ({ message: 'Debe aceptar las condiciones de devolución con cargo' }) }),
 })
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const updated = await prisma.consignment.update({
       where: { id },
-      data: { declaraTitularidad: true, aceptaDevolucionConCargo: true, estado: 'en_evaluacion' },
+      data: { declaraTitularidad: true, declaraOrigenLicito: true, aceptaDevolucionConCargo: true, estado: 'en_evaluacion' },
     })
 
     return NextResponse.json({ data: updated, error: null })

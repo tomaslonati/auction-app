@@ -4,7 +4,9 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 const schema = z.object({
-  photos: z.array(z.object({ url: z.string().url(), orden: z.number().int().min(0) })).min(1),
+  photos: z.array(z.object({ url: z.string().url(), orden: z.number().int().min(0) })).min(6, {
+    message: 'Se requieren al menos 6 fotos',
+  }),
 })
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

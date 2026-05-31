@@ -22,58 +22,64 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { itemId, paymentMethodId, monto } = parsed.data
 
-    // 1. Active session check
-    const session = await prisma.auctionSession.findFirst({
-      where: { userId, auctionId, disconnectedAt: null },
+    // REGLA 2: El usuario no debe tener multas pendientes
+    const pendingPenalty = await prisma.penalty.findFirst({
+      where: { userId, estado: 'pendiente' },
     })
-    if (!session) {
-      return NextResponse.json({ data: null, error: 'No active session in this auction' }, { status: 403 })
+    if (pendingPenalty) {
+      return NextResponse.json({ data: null, error: 'No podés pujar con multas pendientes de pago' }, { status: 403 })
     }
 
-    // 2. Has verified payment method
+    // REGLA 3: El usuario debe tener al menos un medio de pago verificado
     const verifiedMethod = await prisma.paymentMethod.findFirst({
       where: { userId, estado: 'verificado' },
     })
     if (!verifiedMethod) {
-      return NextResponse.json({ data: null, error: 'No verified payment method' }, { status: 403 })
+      return NextResponse.json({ data: null, error: 'No tenés ningún medio de pago verificado' }, { status: 403 })
     }
 
-    // 3. Payment method belongs to user and is verified
+    // REGLA 4: El medio de pago seleccionado debe pertenecer al usuario y estar verificado
     const paymentMethod = await prisma.paymentMethod.findFirst({
       where: { id: paymentMethodId, userId, estado: 'verificado' },
       include: { certifiedCheck: true },
     })
     if (!paymentMethod) {
-      return NextResponse.json({ data: null, error: 'Payment method not found or not verified' }, { status: 400 })
+      return NextResponse.json({ data: null, error: 'El medio de pago no existe o no está verificado' }, { status: 400 })
     }
 
-    // 4. Dollar auction restriction
     const auction = await prisma.auction.findUnique({ where: { id: auctionId } })
-    if (!auction) return NextResponse.json({ data: null, error: 'Auction not found' }, { status: 404 })
+    if (!auction) return NextResponse.json({ data: null, error: 'Subasta no encontrada' }, { status: 404 })
 
+    // REGLA 5: La categoría del usuario debe ser suficiente para acceder a la subasta
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { categoria: true } })
+    const { canAccessAuction } = await import('@/lib/category')
+    if (!user || !canAccessAuction(user.categoria, auction.categoria)) {
+      return NextResponse.json({ data: null, error: 'Tu categoría no es suficiente para participar en esta subasta' }, { status: 403 })
+    }
+
+    // REGLA 6 (subastas en dólares): Solo se aceptan tarjetas o cuentas bancarias internacionales
     if (auction.moneda === 'dolares') {
       const allowed = paymentMethod.esInternacional &&
         (paymentMethod.tipo === 'cuenta_bancaria' || paymentMethod.tipo === 'tarjeta_credito')
       if (!allowed) {
         return NextResponse.json(
-          { data: null, error: 'Dollar auctions require an international bank account or credit card' },
+          { data: null, error: 'Las subastas en dólares requieren una cuenta bancaria o tarjeta internacional' },
           { status: 400 }
         )
       }
     }
 
-    // 5. No pending bid for this item
+    // REGLA 7: No puede haber una puja enviada (pendiente) para el mismo ítem
     const pendingBid = await prisma.bid.findFirst({
       where: { userId, itemId, estado: 'enviada' },
     })
     if (pendingBid) {
-      return NextResponse.json({ data: null, error: 'You already have a pending bid for this item' }, { status: 409 })
+      return NextResponse.json({ data: null, error: 'Ya tenés una puja pendiente para este ítem' }, { status: 409 })
     }
 
-    // 6. Calculate last offer
     const item = await prisma.item.findUnique({ where: { id: itemId } })
     if (!item || item.subastaId !== auctionId) {
-      return NextResponse.json({ data: null, error: 'Item not found in this auction' }, { status: 404 })
+      return NextResponse.json({ data: null, error: 'Ítem no encontrado en esta subasta' }, { status: 404 })
     }
 
     const lastConfirmedBid = await prisma.bid.findFirst({
@@ -84,22 +90,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const ultimaOferta = lastConfirmedBid ? Number(lastConfirmedBid.monto) : Number(item.precioBase)
     const precioBase = Number(item.precioBase)
 
-    // 7. Validate range
+    // REGLA 8 (precio mínimo): La puja debe superar la última oferta en al menos 1% del precio base
     const minBid = ultimaOferta + precioBase * 0.01
-    const maxBid = ultimaOferta + precioBase * 0.20
-    const noMaxLimit = auction.categoria === 'oro' || auction.categoria === 'platino'
-
     if (monto < minBid) {
-      return NextResponse.json({ data: null, error: `Bid must be at least ${minBid}` }, { status: 422 })
-    }
-    if (!noMaxLimit && monto > maxBid) {
-      return NextResponse.json({ data: null, error: `Bid cannot exceed ${maxBid}` }, { status: 422 })
+      return NextResponse.json({ data: null, error: `La puja mínima es ${minBid.toFixed(2)}` }, { status: 422 })
     }
 
-    // 8. Certified check balance
+    // REGLA 9 (precio máximo): La puja no puede superar la última oferta en más del 20% del precio base
+    // Excepción: subastas categoría "oro" y "platino" no tienen límite máximo
+    const noMaxLimit = auction.categoria === 'oro' || auction.categoria === 'platino'
+    const maxBid = ultimaOferta + precioBase * 0.20
+    if (!noMaxLimit && monto > maxBid) {
+      return NextResponse.json({ data: null, error: `La puja máxima es ${maxBid.toFixed(2)} (sin límite para subastas Oro y Platino)` }, { status: 422 })
+    }
+
+    // REGLA 10 (cheque certificado): El saldo disponible debe cubrir el monto ofertado
     if (paymentMethod.tipo === 'cheque_certificado' && paymentMethod.certifiedCheck) {
       if (Number(paymentMethod.certifiedCheck.montoDisponible) < monto) {
-        return NextResponse.json({ data: null, error: 'Insufficient balance in certified check' }, { status: 400 })
+        return NextResponse.json({ data: null, error: 'Saldo insuficiente en el cheque certificado' }, { status: 400 })
       }
     }
 

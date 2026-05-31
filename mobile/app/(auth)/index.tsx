@@ -184,7 +184,7 @@ export default function WelcomeScreen() {
 
             {step === 'email' && (
               <>
-                <TouchableOpacity onPress={() => router.push('/(app)')} style={styles.guestLink}>
+                <TouchableOpacity onPress={() => router.push('/(app)/(tabs)' as never)} style={styles.guestLink}>
                   <Text style={styles.guestText}>Continuar como invitado</Text>
                 </TouchableOpacity>
 

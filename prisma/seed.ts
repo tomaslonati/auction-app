@@ -34,7 +34,9 @@ async function main() {
   // Borrar en orden respetando FKs
   await prisma.consignmentInspection.deleteMany({ where: { consignmentId: CONSIGNMENT_ALICE_ID } })
   await prisma.consignment.deleteMany({ where: { id: CONSIGNMENT_ALICE_ID } })
+  await prisma.bid.deleteMany({ where: { itemId: { in: [ITEM_EN_SUBASTA_ID, ITEM_PENDIENTE_ID] } } })
   await prisma.item.deleteMany({ where: { id: { in: [ITEM_EN_SUBASTA_ID, ITEM_PENDIENTE_ID] } } })
+  await prisma.auctionSession.deleteMany({ where: { auctionId: { in: [AUCTION_ACTIVA_ID, AUCTION_PROGRAMADA_ID] } } })
   await prisma.auction.deleteMany({ where: { id: { in: [AUCTION_ACTIVA_ID, AUCTION_PROGRAMADA_ID] } } })
   // bank_accounts tiene FK a payment_methods → borrar primero con raw SQL
   await prisma.$executeRaw`DELETE FROM bank_accounts WHERE "paymentMethodId" IN (${PM_ALICE_ID}, ${PM_BOB_ID})`
@@ -181,6 +183,13 @@ async function main() {
       duenUserId: ALICE_ID,
       subastaId: AUCTION_ACTIVA_ID,
       estado: 'en_subasta',
+      images: {
+        create: [
+          { url: 'https://picsum.photos/seed/watch1/640/480', orden: 0 },
+          { url: 'https://picsum.photos/seed/watch2/640/480', orden: 1 },
+          { url: 'https://picsum.photos/seed/watch3/640/480', orden: 2 },
+        ],
+      },
     },
   })
 
@@ -195,6 +204,13 @@ async function main() {
       estado: 'pendiente',
       esObraArte: true,
       artistaDisenador: 'Carlos Victorica',
+      images: {
+        create: [
+          { url: 'https://picsum.photos/seed/paint1/640/480', orden: 0 },
+          { url: 'https://picsum.photos/seed/paint2/640/480', orden: 1 },
+          { url: 'https://picsum.photos/seed/paint3/640/480', orden: 2 },
+        ],
+      },
     },
   })
 
