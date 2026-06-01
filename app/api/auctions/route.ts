@@ -50,11 +50,13 @@ export async function GET(request: NextRequest) {
         rematador: true,
         specs: { select: { clave: true, valor: true } },
         items: {
+          take: 1,
           select: {
             id: true,
             numeroPieza: true,
             descripcion: true,
             estado: true,
+            images: { select: { url: true }, orderBy: { orden: 'asc' }, take: 1 },
             ...(isAuthenticated ? { precioBase: true } : {}),
           },
         },

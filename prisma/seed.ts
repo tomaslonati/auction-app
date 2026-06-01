@@ -44,16 +44,37 @@ async function main() {
 
   // ── 2. Paises ───────────────────────────────────────────────────────────
   console.log('🌍 Creando países...')
-  await prisma.pais.upsert({
-    where: { numero: 54 },
-    update: {},
-    create: { numero: 54, nombre: 'Argentina', nombreCorto: 'AR', capital: 'Buenos Aires', nacionalidad: 'Argentino/a', idiomas: 'Español' },
-  })
-  await prisma.pais.upsert({
-    where: { numero: 1 },
-    update: {},
-    create: { numero: 1, nombre: 'Estados Unidos', nombreCorto: 'US', capital: 'Washington D.C.', nacionalidad: 'Estadounidense', idiomas: 'Inglés' },
-  })
+  const paisesData = [
+    { numero: 54,  nombre: 'Argentina',          nombreCorto: 'AR', capital: 'Buenos Aires',    nacionalidad: 'Argentino/a',    idiomas: 'Español' },
+    { numero: 591, nombre: 'Bolivia',             nombreCorto: 'BO', capital: 'Sucre',           nacionalidad: 'Boliviano/a',    idiomas: 'Español' },
+    { numero: 55,  nombre: 'Brasil',              nombreCorto: 'BR', capital: 'Brasilia',        nacionalidad: 'Brasileño/a',    idiomas: 'Portugués' },
+    { numero: 56,  nombre: 'Chile',               nombreCorto: 'CL', capital: 'Santiago',        nacionalidad: 'Chileno/a',      idiomas: 'Español' },
+    { numero: 57,  nombre: 'Colombia',            nombreCorto: 'CO', capital: 'Bogotá',          nacionalidad: 'Colombiano/a',   idiomas: 'Español' },
+    { numero: 506, nombre: 'Costa Rica',          nombreCorto: 'CR', capital: 'San José',        nacionalidad: 'Costarricense',  idiomas: 'Español' },
+    { numero: 53,  nombre: 'Cuba',                nombreCorto: 'CU', capital: 'La Habana',       nacionalidad: 'Cubano/a',       idiomas: 'Español' },
+    { numero: 593, nombre: 'Ecuador',             nombreCorto: 'EC', capital: 'Quito',           nacionalidad: 'Ecuatoriano/a',  idiomas: 'Español' },
+    { numero: 503, nombre: 'El Salvador',         nombreCorto: 'SV', capital: 'San Salvador',    nacionalidad: 'Salvadoreño/a',  idiomas: 'Español' },
+    { numero: 34,  nombre: 'España',              nombreCorto: 'ES', capital: 'Madrid',          nacionalidad: 'Español/a',      idiomas: 'Español' },
+    { numero: 1,   nombre: 'Estados Unidos',      nombreCorto: 'US', capital: 'Washington D.C.', nacionalidad: 'Estadounidense', idiomas: 'Inglés' },
+    { numero: 33,  nombre: 'Francia',             nombreCorto: 'FR', capital: 'París',           nacionalidad: 'Francés/a',      idiomas: 'Francés' },
+    { numero: 502, nombre: 'Guatemala',           nombreCorto: 'GT', capital: 'Guatemala',       nacionalidad: 'Guatemalteco/a', idiomas: 'Español' },
+    { numero: 504, nombre: 'Honduras',            nombreCorto: 'HN', capital: 'Tegucigalpa',     nacionalidad: 'Hondureño/a',    idiomas: 'Español' },
+    { numero: 39,  nombre: 'Italia',              nombreCorto: 'IT', capital: 'Roma',            nacionalidad: 'Italiano/a',     idiomas: 'Italiano' },
+    { numero: 52,  nombre: 'México',              nombreCorto: 'MX', capital: 'Ciudad de México',nacionalidad: 'Mexicano/a',     idiomas: 'Español' },
+    { numero: 505, nombre: 'Nicaragua',           nombreCorto: 'NI', capital: 'Managua',         nacionalidad: 'Nicaragüense',   idiomas: 'Español' },
+    { numero: 507, nombre: 'Panamá',              nombreCorto: 'PA', capital: 'Ciudad de Panamá',nacionalidad: 'Panameño/a',     idiomas: 'Español' },
+    { numero: 595, nombre: 'Paraguay',            nombreCorto: 'PY', capital: 'Asunción',        nacionalidad: 'Paraguayo/a',    idiomas: 'Español' },
+    { numero: 51,  nombre: 'Perú',                nombreCorto: 'PE', capital: 'Lima',            nacionalidad: 'Peruano/a',      idiomas: 'Español' },
+    { numero: 351, nombre: 'Portugal',            nombreCorto: 'PT', capital: 'Lisboa',          nacionalidad: 'Portugués/a',    idiomas: 'Portugués' },
+    { numero: 44,  nombre: 'Reino Unido',         nombreCorto: 'GB', capital: 'Londres',         nacionalidad: 'Británico/a',    idiomas: 'Inglés' },
+    { numero: 1809,nombre: 'República Dominicana',nombreCorto: 'DO', capital: 'Santo Domingo',   nacionalidad: 'Dominicano/a',   idiomas: 'Español' },
+    { numero: 598, nombre: 'Uruguay',             nombreCorto: 'UY', capital: 'Montevideo',      nacionalidad: 'Uruguayo/a',     idiomas: 'Español' },
+    { numero: 58,  nombre: 'Venezuela',           nombreCorto: 'VE', capital: 'Caracas',         nacionalidad: 'Venezolano/a',   idiomas: 'Español' },
+  ]
+  for (const p of paisesData) {
+    await prisma.pais.upsert({ where: { numero: p.numero }, update: {}, create: p })
+  }
+  console.log(`   ✓ ${paisesData.length} países`)
 
   // ── 3. Usuarios en Supabase Auth + DB ───────────────────────────────────
   console.log('👤 Creando usuarios...')
