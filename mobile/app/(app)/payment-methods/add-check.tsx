@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
@@ -85,6 +87,7 @@ export default function AddCheckScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Agregar nuevo{'\n'}cheque certificado</Text>
@@ -159,6 +162,7 @@ export default function AddCheckScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

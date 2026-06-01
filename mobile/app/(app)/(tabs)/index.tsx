@@ -247,7 +247,7 @@ export default function HomeScreen() {
                   <AperturaCard
                     key={a.id}
                     auction={a}
-                    onPress={() => router.push(`/(app)/auction/${a.id}` as never)}
+                    onPress={() => router.push(`/(app)/auction/${a.id}/catalog` as never)}
                   />
                 ))}
               </ScrollView>

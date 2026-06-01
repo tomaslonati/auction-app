@@ -43,7 +43,7 @@ const MENU_ITEMS: MenuItem[] = [
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, reset } = useAuthStore();
 
   useEffect(() => {
     api.get<typeof user>('/api/users/me').then(({ data }) => {
@@ -51,13 +51,17 @@ export default function ProfileScreen() {
     });
   }, []);
 
-  async function handleLogout() {
+  function handleLogout() {
     Alert.alert('Cerrar sesión', '¿Seguro que querés salir?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Salir',
         style: 'destructive',
-        onPress: () => supabase.auth.signOut(),
+        onPress: async () => {
+          await supabase.auth.signOut();
+          reset();
+          router.replace('/(auth)');
+        },
       },
     ]);
   }

@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -132,6 +134,7 @@ export default function AddCreditCardScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Agregar nueva tarjeta</Text>
@@ -226,6 +229,7 @@ export default function AddCreditCardScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

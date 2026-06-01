@@ -6,14 +6,47 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Input } from '@/components/ui/Input';
 import { ButtonPrimary } from '@/components/ui/Button';
 import { colors, typography, spacing, radius, fonts } from '@/constants/design';
 
 type Field = 'email' | 'nombre' | 'apellido' | 'domicilio' | 'numeroPais';
+type Pais = { numero: number; nombre: string };
+
+const PAISES: Pais[] = [
+  { numero: 54,  nombre: 'Argentina' },
+  { numero: 591, nombre: 'Bolivia' },
+  { numero: 55,  nombre: 'Brasil' },
+  { numero: 56,  nombre: 'Chile' },
+  { numero: 57,  nombre: 'Colombia' },
+  { numero: 506, nombre: 'Costa Rica' },
+  { numero: 53,  nombre: 'Cuba' },
+  { numero: 593, nombre: 'Ecuador' },
+  { numero: 503, nombre: 'El Salvador' },
+  { numero: 34,  nombre: 'España' },
+  { numero: 1,   nombre: 'Estados Unidos' },
+  { numero: 33,  nombre: 'Francia' },
+  { numero: 502, nombre: 'Guatemala' },
+  { numero: 504, nombre: 'Honduras' },
+  { numero: 39,  nombre: 'Italia' },
+  { numero: 52,  nombre: 'México' },
+  { numero: 505, nombre: 'Nicaragua' },
+  { numero: 507, nombre: 'Panamá' },
+  { numero: 595, nombre: 'Paraguay' },
+  { numero: 51,  nombre: 'Perú' },
+  { numero: 351, nombre: 'Portugal' },
+  { numero: 44,  nombre: 'Reino Unido' },
+  { numero: 1809,nombre: 'República Dominicana' },
+  { numero: 598, nombre: 'Uruguay' },
+  { numero: 58,  nombre: 'Venezuela' },
+];
 
 export default function PersonalDataScreen() {
   const router = useRouter();
@@ -23,9 +56,12 @@ export default function PersonalDataScreen() {
     nombre: '',
     apellido: '',
     domicilio: '',
-    numeroPais: '54',
+    numeroPais: 54,
   });
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const [showPicker, setShowPicker] = useState(false);
+
+  const paisSeleccionado = PAISES.find((p) => p.numero === form.numeroPais);
 
   function set(field: Field) {
     return (value: string) => {
@@ -40,8 +76,7 @@ export default function PersonalDataScreen() {
     if (!form.nombre.trim()) next.nombre = 'Requerido';
     if (!form.apellido.trim()) next.apellido = 'Requerido';
     if (!form.domicilio.trim()) next.domicilio = 'Requerido';
-    const code = parseInt(form.numeroPais, 10);
-    if (isNaN(code) || code <= 0) next.numeroPais = 'Ingresá un código válido (ej. 54)';
+    if (!form.numeroPais) next.numeroPais = 'Seleccioná un país';
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -55,7 +90,7 @@ export default function PersonalDataScreen() {
         nombre: form.nombre,
         apellido: form.apellido,
         domicilio: form.domicilio,
-        numeroPais: form.numeroPais,
+        numeroPais: String(form.numeroPais),
       },
     });
   }
@@ -125,14 +160,57 @@ export default function PersonalDataScreen() {
               error={errors.domicilio}
             />
 
-            <Input
-              label="CÓD. DE PAÍS"
-              placeholder="54"
-              value={form.numeroPais}
-              onChangeText={set('numeroPais')}
-              keyboardType="number-pad"
-              error={errors.numeroPais}
-            />
+            {/* País de origen */}
+            <View>
+              <Text style={styles.pickerLabel}>PAÍS DE ORIGEN</Text>
+              <TouchableOpacity
+                style={[styles.pickerBtn, errors.numeroPais ? styles.pickerBtnError : null]}
+                onPress={() => setShowPicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={paisSeleccionado ? styles.pickerValue : styles.pickerPlaceholder}>
+                  {paisSeleccionado ? paisSeleccionado.nombre : 'Seleccioná tu país'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#9EA8A6" />
+              </TouchableOpacity>
+              {errors.numeroPais ? <Text style={styles.pickerError}>{errors.numeroPais}</Text> : null}
+            </View>
+
+            <Modal visible={showPicker} animationType="slide" transparent>
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalSheet}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>País de origen</Text>
+                    <TouchableOpacity onPress={() => setShowPicker(false)} hitSlop={12}>
+                      <Ionicons name="close" size={20} color="#474747" />
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={PAISES}
+                    keyExtractor={(p) => String(p.numero)}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.modalItem, item.numero === form.numeroPais && styles.modalItemSelected]}
+                        onPress={() => {
+                          setForm((prev) => ({ ...prev, numeroPais: item.numero }));
+                          setErrors((prev) => ({ ...prev, numeroPais: undefined }));
+                          setShowPicker(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.modalItemText, item.numero === form.numeroPais && styles.modalItemTextSelected]}>
+                          {item.nombre}
+                        </Text>
+                        {item.numero === form.numeroPais && (
+                          <Ionicons name="checkmark" size={16} color="#151515" />
+                        )}
+                      </TouchableOpacity>
+                    )}
+                    showsVerticalScrollIndicator={false}
+                  />
+                </View>
+              </View>
+            </Modal>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -204,5 +282,90 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 40 : spacing.lg,
     paddingTop: spacing.md,
     backgroundColor: colors.backgroundApp,
+  },
+  pickerLabel: {
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.full,
+    paddingHorizontal: 20,
+    height: 52,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  pickerBtnError: {
+    borderColor: '#DC2626',
+  },
+  pickerValue: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: colors.textPrimary,
+  },
+  pickerPlaceholder: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: '#9CA3AF',
+  },
+  pickerError: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#DC2626',
+    marginTop: 4,
+    paddingLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E4E4E7',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    color: '#18181B',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  modalItemSelected: {
+    backgroundColor: '#F4F5F5',
+  },
+  modalItemText: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: '#474747',
+  },
+  modalItemTextSelected: {
+    fontFamily: fonts.semiBold,
+    color: '#151515',
   },
 });

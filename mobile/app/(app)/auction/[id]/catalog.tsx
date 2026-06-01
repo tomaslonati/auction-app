@@ -82,8 +82,15 @@ export default function CatalogScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
+  const [auctionName, setAuctionName] = useState('');
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ItemStatus | 'todas'>('todas');
+
+  useEffect(() => {
+    api.get<{ nombre: string }>(`/api/auctions/${id}`).then(({ data }) => {
+      if (data) setAuctionName(data.nombre);
+    });
+  }, [id]);
 
   useEffect(() => {
     const params = filter !== 'todas' ? `?estado=${filter}` : '';
@@ -108,7 +115,7 @@ export default function CatalogScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={s.headerBtn}>
           <Ionicons name="chevron-back" size={16} color="#18181B" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Catálogo</Text>
+        <Text style={s.headerTitle} numberOfLines={1}>{auctionName || 'Catálogo'}</Text>
         <View style={{ width: 32 }} />
       </View>
 

@@ -1,12 +1,23 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, View, Text } from 'react-native';
-import { colors, fonts, spacing, radius } from '@/constants/design';
+import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '@/constants/design';
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabIcon({
+  icon, iconActive, label, focused,
+}: { icon: IconName; iconActive: IconName; label: string; focused: boolean }) {
   return (
-    <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Text style={[styles.tabEmoji, focused && styles.tabEmojiActive]}>{emoji}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
+    <View style={styles.tabItem}>
+      <Ionicons
+        name={focused ? iconActive : icon}
+        size={24}
+        color={focused ? '#1A1A1A' : '#9EA8A6'}
+      />
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -23,27 +34,24 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="⌂" label="Inicio" focused={focused} />
+            <TabIcon icon="home-outline" iconActive="home" label="Inicio" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="auctions"
         options={{
-          title: 'Subastas',
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="⚖" label="Subastas" focused={focused} />
+            <TabIcon icon="scale-outline" iconActive="scale" label="Subastas" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="◉" label="Profile" focused={focused} />
+            <TabIcon icon="person-outline" iconActive="person" label="Perfil" focused={focused} />
           ),
         }}
       />
@@ -53,48 +61,27 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 24,
-    right: 24,
-    height: 72,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderTopWidth: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
-    paddingHorizontal: spacing.sm,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E4E4E7',
+    height: 80,
     paddingBottom: 0,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    gap: 2,
-    minWidth: 80,
-  },
-  tabItemActive: {
-    backgroundColor: '#F5F5F5',
-  },
-  tabEmoji: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-  tabEmojiActive: {
-    color: colors.textPrimary,
+    gap: 4,
+    paddingTop: 8,
   },
   tabLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
     fontFamily: fonts.medium,
+    color: '#9EA8A6',
   },
   tabLabelActive: {
-    color: colors.textPrimary,
     fontFamily: fonts.semiBold,
+    color: '#1A1A1A',
   },
 });
