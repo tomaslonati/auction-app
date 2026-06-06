@@ -35,8 +35,10 @@ export default function DocumentsScreen() {
     email: string;
     nombre: string;
     apellido: string;
+    documento: string;
     domicilio: string;
     numeroPais: string;
+    paisNombre: string;
   }>();
 
   const setPendingRegistration = useAuthStore((s) => s.setPendingRegistration);
@@ -118,6 +120,7 @@ export default function DocumentsScreen() {
           email: params.email,
           nombre: params.nombre,
           apellido: params.apellido,
+          documento: params.documento,
           domicilio: params.domicilio,
           numeroPais: parseInt(params.numeroPais, 10),
           fotoDocFrenteUrl: frenteUrl,
@@ -140,7 +143,16 @@ export default function DocumentsScreen() {
       // Store userId and email so set-password can complete registration
       setPendingRegistration(json.data.userId, params.email);
 
-      router.replace('/(auth)/register/pending');
+      router.replace({
+        pathname: '/(auth)/register/pending',
+        params: {
+          email: params.email,
+          nombre: params.nombre,
+          apellido: params.apellido,
+          domicilio: params.domicilio,
+          paisNombre: params.paisNombre,
+        },
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[documents] upload error:', msg);

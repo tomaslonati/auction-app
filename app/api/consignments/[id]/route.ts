@@ -15,6 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         inspection: true,
         location: { include: { deposit: true } },
         consignmentItems: { include: { item: true } },
+        payoutAccounts: { orderBy: { declaradaEn: 'desc' }, take: 1 },
       },
     })
 

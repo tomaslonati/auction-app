@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const purchases = await prisma.purchase.findMany({
       where: { compradorUserId: userId, subastaId: auctionId },
-      select: { itemId: true, montoFinal: true, comision: true, costoEnvio: true, estadoPago: true },
+      select: { id: true, itemId: true, montoFinal: true, comision: true, costoEnvio: true, estadoPago: true },
     })
 
     const purchaseMap = new Map(purchases.map((p) => [p.itemId, p]))

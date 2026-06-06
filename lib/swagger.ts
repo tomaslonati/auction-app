@@ -54,15 +54,16 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['email', 'nombre', 'apellido', 'domicilio', 'numeroPais'],
+                  required: ['email', 'nombre', 'apellido', 'domicilio', 'numeroPais', 'documento', 'fotoDocFrenteUrl', 'fotoDocDorsoUrl'],
                   properties: {
                     email: { type: 'string', format: 'email' },
                     nombre: { type: 'string' },
                     apellido: { type: 'string' },
                     domicilio: { type: 'string' },
                     numeroPais: { type: 'integer', description: 'Número de país (FK a tabla paises)' },
-                    fotoDocFrenteUrl: { type: 'string', format: 'uri' },
-                    fotoDocDorsoUrl: { type: 'string', format: 'uri' },
+                    documento: { type: 'string', description: 'Número de documento / DNI del postor (texto)' },
+                    fotoDocFrenteUrl: { type: 'string', format: 'uri', description: 'URL de la foto del frente del documento (obtenida via /storage/upload-url)' },
+                    fotoDocDorsoUrl: { type: 'string', format: 'uri', description: 'URL de la foto del dorso del documento (obtenida via /storage/upload-url)' },
                   },
                 },
               },
@@ -426,6 +427,22 @@ export function getSwaggerSpec() {
         post: {
           tags: ['Bids'],
           summary: 'Realizar una puja',
+          description: `Reglas de negocio aplicadas antes de aceptar la puja:
+
+**Precio mínimo:** \`monto ≥ ultimaOferta + precioBase × 1%\`
+Ejemplo: precioBase=10000, ultimaOferta=15000 → mínimo=15100
+
+**Precio máximo (categorías comun/especial/plata):** \`monto ≤ ultimaOferta + precioBase × 20%\`
+Ejemplo: precioBase=10000, ultimaOferta=15000 → máximo=17000
+*Sin límite máximo para subastas de categoría Oro y Platino.*
+
+**Categoría suficiente:** la categoría del usuario debe ser ≥ a la categoría de la subasta.
+
+**Usuario bloqueado por multa:** se rechaza con 403 si el usuario tiene multas en estado pendiente. Debe pagar la multa en \`/users/me/penalties/{id}/pay\` antes de poder pujar.
+
+**Subastas en dólares:** el medio de pago debe ser cuenta bancaria o tarjeta de crédito con \`esInternacional=true\`.
+
+**Puja pendiente:** no se puede realizar una nueva puja sobre el mismo ítem si ya hay una en estado "enviada".`,
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: {
             required: true,
@@ -435,9 +452,9 @@ export function getSwaggerSpec() {
                   type: 'object',
                   required: ['itemId', 'paymentMethodId', 'monto'],
                   properties: {
-                    itemId: { type: 'string', format: 'uuid' },
-                    paymentMethodId: { type: 'string', format: 'uuid' },
-                    monto: { type: 'number' },
+                    itemId: { type: 'string', format: 'uuid', description: 'ID del ítem actualmente en subasta' },
+                    paymentMethodId: { type: 'string', format: 'uuid', description: 'ID del medio de pago verificado del usuario' },
+                    monto: { type: 'number', description: 'Monto ofertado. Debe respetar el rango [mínimo, máximo] según las reglas de negocio.' },
                   },
                 },
               },
@@ -445,10 +462,10 @@ export function getSwaggerSpec() {
           },
           responses: {
             201: { description: 'Puja creada (estado: enviada)' },
-            400: { description: 'Medio de pago inválido' },
-            403: { description: 'Sin sesión activa o sin medio verificado' },
-            409: { description: 'Ya tiene puja pendiente para este ítem' },
-            422: { description: 'Monto fuera de rango' },
+            400: { description: 'Medio de pago inválido o no pertenece al usuario' },
+            403: { description: 'Sin sesión activa, sin medio verificado, categoría insuficiente, o multas pendientes de pago' },
+            409: { description: 'Ya tiene puja pendiente (estado: enviada) para este ítem' },
+            422: { description: 'Monto fuera del rango permitido (por debajo del mínimo o por encima del máximo)' },
           },
         },
       },
@@ -529,7 +546,7 @@ export function getSwaggerSpec() {
                   type: 'object',
                   required: ['photos'],
                   properties: {
-                    photos: { type: 'array', items: { type: 'object', properties: { url: { type: 'string' }, orden: { type: 'integer' } } } },
+                    photos: { type: 'array', minItems: 6, description: 'Se requieren al menos 6 fotos del bien.', items: { type: 'object', required: ['url', 'orden'], properties: { url: { type: 'string', format: 'uri' }, orden: { type: 'integer', minimum: 0 } } } },
                   },
                 },
               },
@@ -549,10 +566,11 @@ export function getSwaggerSpec() {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['declaraTitularidad', 'aceptaDevolucionConCargo'],
+                  required: ['declaraTitularidad', 'declaraOrigenLicito', 'aceptaDevolucionConCargo'],
                   properties: {
-                    declaraTitularidad: { type: 'boolean', enum: [true] },
-                    aceptaDevolucionConCargo: { type: 'boolean', enum: [true] },
+                    declaraTitularidad: { type: 'boolean', enum: [true], description: 'El usuario declara ser titular del bien o tener autorización legal suficiente para su venta.' },
+                    declaraOrigenLicito: { type: 'boolean', enum: [true], description: 'El usuario declara que el bien tiene origen lícito y puede acreditar su procedencia ante la empresa o autoridades competentes.' },
+                    aceptaDevolucionConCargo: { type: 'boolean', enum: [true], description: 'El usuario acepta que la devolución del bien (por rechazo o retiro voluntario) se realiza con cargo a su cuenta.' },
                   },
                 },
               },

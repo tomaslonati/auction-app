@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { colors, spacing, fonts } from '@/constants/design';
 
 type Bid = { id: string; monto: number; estado: string; createdAt: string };
-type Purchase = { montoFinal: number; comision: number; costoEnvio: number; estadoPago: string } | undefined;
+type Purchase = { id: string; montoFinal: number; comision: number; costoEnvio: number; estadoPago: string } | undefined;
 type ItemHistory = { item: { id: string; descripcion: string; numeroPieza: number }; bids: Bid[]; won: boolean; purchase: Purchase };
 
 export default function HistoryDetailScreen() {
@@ -59,6 +59,14 @@ export default function HistoryDetailScreen() {
             <View style={styles.purchaseRow}><Text style={styles.purchaseLabel}>Comisión</Text><Text style={styles.purchaseValue}>${Number(item.purchase.comision).toLocaleString('es-AR')}</Text></View>
             <View style={styles.purchaseRow}><Text style={styles.purchaseLabel}>Costo de envío</Text><Text style={styles.purchaseValue}>${Number(item.purchase.costoEnvio).toLocaleString('es-AR')}</Text></View>
             <View style={styles.purchaseRow}><Text style={styles.purchaseLabel}>Estado</Text><Text style={styles.purchaseValue}>{item.purchase.estadoPago}</Text></View>
+            <TouchableOpacity
+              style={styles.purchaseDetailBtn}
+              onPress={() => router.push(`/(app)/purchase/${item.purchase!.id}` as never)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.purchaseDetailBtnText}>Ver detalle de compra</Text>
+              <Ionicons name="chevron-forward" size={14} color="#1D4ED8" />
+            </TouchableOpacity>
           </View>
         ) : null}
         renderItem={({ item: bid, index }) => (
@@ -95,11 +103,16 @@ const styles = StyleSheet.create({
   bidIndex: { fontSize: 12, fontFamily: fonts.semiBold, color: '#D0D9D7', width: 28 },
   bidAmount: { flex: 1, fontSize: 15, fontFamily: fonts.semiBold, color: '#171C26' },
   bidStatus: { fontSize: 12, fontFamily: fonts.regular },
-  purchaseBox: { backgroundColor: '#EFF6FF', borderRadius: 14, padding: spacing.md, gap: 8, marginTop: 4 },
+  purchaseBox: { backgroundColor: '#EFF6FF', borderRadius: 14, padding: spacing.md, gap: 8, marginTop: 4, marginBottom: spacing.md },
   purchaseTitle: { fontSize: 13, fontFamily: fonts.semiBold, color: '#1D4ED8', marginBottom: 4 },
   purchaseRow: { flexDirection: 'row', justifyContent: 'space-between' },
   purchaseLabel: { fontSize: 13, fontFamily: fonts.regular, color: '#586160' },
   purchaseValue: { fontSize: 13, fontFamily: fonts.semiBold, color: '#1F2937' },
+  purchaseDetailBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(29,78,216,0.15)',
+  },
+  purchaseDetailBtnText: { fontSize: 13, fontFamily: fonts.semiBold, color: '#1D4ED8', letterSpacing: -0.3 },
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyText: { fontSize: 15, fontFamily: fonts.regular, color: colors.textSecondary },
 });

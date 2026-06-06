@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/Input';
 import { ButtonPrimary } from '@/components/ui/Button';
 import { colors, typography, spacing, radius, fonts } from '@/constants/design';
 
-type Field = 'email' | 'nombre' | 'apellido' | 'domicilio' | 'numeroPais';
+type Field = 'email' | 'nombre' | 'apellido' | 'documento' | 'domicilio' | 'numeroPais';
 type Pais = { numero: number; nombre: string };
 
 const PAISES: Pais[] = [
@@ -55,13 +55,22 @@ export default function PersonalDataScreen() {
     email: params.email ?? '',
     nombre: '',
     apellido: '',
+    documento: '',
     domicilio: '',
     numeroPais: 54,
   });
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [showPicker, setShowPicker] = useState(false);
 
-  const paisSeleccionado = PAISES.find((p) => p.numero === form.numeroPais);
+  const paisSeleccionado = PAISES.find((p) => p.numero === form.numeroPais)
+
+  const isFormComplete =
+    /\S+@\S+\.\S+/.test(form.email) &&
+    form.nombre.trim().length > 0 &&
+    form.apellido.trim().length > 0 &&
+    form.documento.trim().length > 0 &&
+    form.domicilio.trim().length > 0 &&
+    !!form.numeroPais;
 
   function set(field: Field) {
     return (value: string) => {
@@ -75,6 +84,7 @@ export default function PersonalDataScreen() {
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) next.email = 'Email inválido';
     if (!form.nombre.trim()) next.nombre = 'Requerido';
     if (!form.apellido.trim()) next.apellido = 'Requerido';
+    if (!form.documento.trim()) next.documento = 'Requerido';
     if (!form.domicilio.trim()) next.domicilio = 'Requerido';
     if (!form.numeroPais) next.numeroPais = 'Seleccioná un país';
     setErrors(next);
@@ -89,8 +99,10 @@ export default function PersonalDataScreen() {
         email: form.email,
         nombre: form.nombre,
         apellido: form.apellido,
+        documento: form.documento,
         domicilio: form.domicilio,
         numeroPais: String(form.numeroPais),
+        paisNombre: paisSeleccionado?.nombre ?? '',
       },
     });
   }
@@ -102,6 +114,7 @@ export default function PersonalDataScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -150,6 +163,16 @@ export default function PersonalDataScreen() {
                 containerStyle={styles.halfInput}
               />
             </View>
+
+            <Input
+              label="DOCUMENTO / DNI"
+              placeholder="12345678"
+              value={form.documento}
+              onChangeText={set('documento')}
+              keyboardType="default"
+              autoCapitalize="none"
+              error={errors.documento}
+            />
 
             <Input
               label="DIRECCIÓN"
@@ -213,12 +236,14 @@ export default function PersonalDataScreen() {
             </Modal>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Bottom CTA */}
-      <View style={styles.footer}>
-        <ButtonPrimary label="Continuar" onPress={handleContinue} />
-      </View>
+        {/* Bottom CTA — aparece solo cuando todos los campos requeridos están completos */}
+        {isFormComplete && (
+          <View style={styles.footer}>
+            <ButtonPrimary label="Continuar" onPress={handleContinue} />
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -235,7 +260,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: 120,
+    paddingBottom: spacing.xl,
     gap: spacing.xl,
   },
   stepContainer: {
@@ -274,10 +299,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? 40 : spacing.lg,
     paddingTop: spacing.md,

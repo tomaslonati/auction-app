@@ -183,23 +183,11 @@ export default function WelcomeScreen() {
             />
 
             {step === 'email' && (
-              <>
-                <TouchableOpacity onPress={() => router.push('/(app)/(tabs)' as never)} style={styles.guestLink}>
-                  <Text style={styles.guestText}>Continuar como invitado</Text>
-                </TouchableOpacity>
-
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <ButtonOutline
-                  label="Registrarme"
-                  onPress={() => router.push('/(auth)/register/personal-data')}
-                  style={styles.outlineOnDark}
-                />
-              </>
+              <ButtonOutline
+                label="Registrarme"
+                onPress={() => router.push('/(auth)/register/personal-data')}
+                style={styles.outlineOnDark}
+              />
             )}
 
             {step === 'password' && (
@@ -263,28 +251,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: 'rgba(255,255,255,0.7)',
     textDecorationLine: 'underline',
-  },
-  guestLink: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  guestText: {
-    ...typography.link,
-    color: colors.textPrimary,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  dividerText: {
-    ...typography.small,
-    color: 'rgba(255,255,255,0.6)',
   },
   outlineOnDark: {
     borderColor: 'rgba(255,255,255,0.4)',

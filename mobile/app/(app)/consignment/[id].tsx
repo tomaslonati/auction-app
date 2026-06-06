@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Image, Alert, Dimensions,
+  ActivityIndicator, Image, Alert, Dimensions, TextInput, Modal,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -26,6 +27,20 @@ type Location = {
   fechaIngreso: string;
 };
 type Spec = { clave: string; valor: string };
+type InsurancePolicy = {
+  numeroPoliza: string;
+  compania: string;
+  telefonoCompania?: string;
+  emailCompania?: string;
+  valorAsegurado: number;
+  fechaInicio: string;
+  fechaVencimiento: string;
+};
+type PayoutAccount = {
+  id: string; banco: string; numeroCuenta: string;
+  titular: string; moneda: string; pais?: string;
+  swiftBic?: string; iban?: string;
+};
 type Consignment = {
   id: string;
   descripcion: string;
@@ -41,6 +56,7 @@ type Consignment = {
   specs: Spec[];
   inspection: Inspection | null;
   location: Location | null;
+  payoutAccounts: PayoutAccount[];
 };
 
 const STATUS_LABELS: Record<ConsignmentStatus, string> = {
@@ -60,13 +76,21 @@ export default function ConsignmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [consignment, setConsignment] = useState<Consignment | null>(null);
+  const [insurancePolicies, setInsurancePolicies] = useState<InsurancePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ banco: '', numeroCuenta: '', titular: '', moneda: 'ARS', swiftBic: '', iban: '' });
+  const [savingPayout, setSavingPayout] = useState(false);
 
   async function load() {
-    const { data } = await api.get<Consignment>(`/api/consignments/${id}`);
+    const [{ data }, { data: policies }] = await Promise.all([
+      api.get<Consignment>(`/api/consignments/${id}`),
+      api.get<InsurancePolicy[]>(`/api/consignments/${id}/insurance`),
+    ]);
     if (data) setConsignment(data);
+    if (policies) setInsurancePolicies(policies);
     setLoading(false);
   }
 
@@ -93,6 +117,28 @@ export default function ConsignmentDetailScreen() {
         },
       ]
     );
+  }
+
+  async function handleSavePayout() {
+    if (!payoutForm.banco.trim() || !payoutForm.numeroCuenta.trim() || !payoutForm.titular.trim() || !payoutForm.moneda.trim()) {
+      Alert.alert('Campos requeridos', 'Completá banco, número de cuenta, titular y moneda.');
+      return;
+    }
+    setSavingPayout(true);
+    const { error } = await api.post(`/api/consignments/${id}/payout-account`, {
+      banco: payoutForm.banco.trim(),
+      numeroCuenta: payoutForm.numeroCuenta.trim(),
+      titular: payoutForm.titular.trim(),
+      numeroPaisId: 54,
+      moneda: payoutForm.moneda.trim(),
+      ...(payoutForm.swiftBic.trim() ? { swiftBic: payoutForm.swiftBic.trim() } : {}),
+      ...(payoutForm.iban.trim() ? { iban: payoutForm.iban.trim() } : {}),
+    });
+    setSavingPayout(false);
+    if (error) { Alert.alert('Error', typeof error === 'string' ? error : 'No se pudo guardar la cuenta.'); return; }
+    setShowPayoutModal(false);
+    setPayoutForm({ banco: '', numeroCuenta: '', titular: '', moneda: 'ARS', swiftBic: '', iban: '' });
+    await load();
   }
 
   if (loading) return <View style={s.loader}><ActivityIndicator color={colors.textSecondary} /></View>;
@@ -303,7 +349,160 @@ export default function ConsignmentDetailScreen() {
             )}
           </View>
         )}
+
+        {/* Póliza de seguro — visible cuando el bien está en depósito o fue subastado/vendido */}
+        {(['en_deposito', 'subastado', 'vendido'] as ConsignmentStatus[]).includes(consignment.estado) &&
+          insurancePolicies.length > 0 && (
+          <View style={s.insuranceCard}>
+            <View style={s.insuranceHeader}>
+              <Ionicons name="shield-checkmark-outline" size={18} color="#1E3A5F" />
+              <Text style={s.insuranceTitle}>PÓLIZA DE SEGURO</Text>
+            </View>
+            {insurancePolicies.map((policy, i) => (
+              <View key={i} style={s.insuranceBody}>
+                <View style={s.insuranceRow}>
+                  <Text style={s.insuranceLabel}>N° DE PÓLIZA</Text>
+                  <Text style={s.insuranceValue}>{policy.numeroPoliza}</Text>
+                </View>
+                <View style={s.insuranceRow}>
+                  <Text style={s.insuranceLabel}>COMPAÑÍA</Text>
+                  <Text style={s.insuranceValue}>{policy.compania}</Text>
+                </View>
+                <View style={s.insuranceRow}>
+                  <Text style={s.insuranceLabel}>VALOR ASEGURADO</Text>
+                  <Text style={[s.insuranceValue, s.insuranceValueBold]}>
+                    ${Number(policy.valorAsegurado).toLocaleString('es-AR')}
+                  </Text>
+                </View>
+                <View style={s.insuranceDivider} />
+                <View style={s.insuranceDatesRow}>
+                  <View style={s.insuranceDateItem}>
+                    <Text style={s.insuranceLabel}>INICIO</Text>
+                    <Text style={s.insuranceValue}>{formatDate(policy.fechaInicio)}</Text>
+                  </View>
+                  <View style={s.insuranceDateItem}>
+                    <Text style={s.insuranceLabel}>VENCIMIENTO</Text>
+                    <Text style={s.insuranceValue}>{formatDate(policy.fechaVencimiento)}</Text>
+                  </View>
+                </View>
+                {(policy.telefonoCompania || policy.emailCompania) && (
+                  <>
+                    <View style={s.insuranceDivider} />
+                    <Text style={[s.insuranceLabel, { marginBottom: 6 }]}>CONTACTO ASEGURADORA</Text>
+                    {policy.telefonoCompania && (
+                      <View style={s.insuranceContactRow}>
+                        <Ionicons name="call-outline" size={14} color="#3D5A80" />
+                        <Text style={s.insuranceContactText}>{policy.telefonoCompania}</Text>
+                      </View>
+                    )}
+                    {policy.emailCompania && (
+                      <View style={s.insuranceContactRow}>
+                        <Ionicons name="mail-outline" size={14} color="#3D5A80" />
+                        <Text style={s.insuranceContactText}>{policy.emailCompania}</Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Cuenta de cobro — visible cuando inspección aprobada y aceptada */}
+        {inspectionPassed && (
+          <View style={s.payoutCard}>
+            <View style={s.payoutHeader}>
+              <Ionicons name="wallet-outline" size={18} color="#191C1D" />
+              <Text style={s.payoutTitle}>CUENTA DE COBRO</Text>
+            </View>
+            {consignment.payoutAccounts.length > 0 ? (
+              <View style={s.payoutBody}>
+                <Text style={s.payoutInfo}>
+                  Cuenta declarada para recibir el resultado de la venta.
+                </Text>
+                <View style={s.payoutRow}>
+                  <Text style={s.payoutLabel}>BANCO</Text>
+                  <Text style={s.payoutValue}>{consignment.payoutAccounts[0].banco}</Text>
+                </View>
+                <View style={s.payoutRow}>
+                  <Text style={s.payoutLabel}>CUENTA</Text>
+                  <Text style={s.payoutValue}>{consignment.payoutAccounts[0].numeroCuenta}</Text>
+                </View>
+                <View style={s.payoutRow}>
+                  <Text style={s.payoutLabel}>TITULAR</Text>
+                  <Text style={s.payoutValue}>{consignment.payoutAccounts[0].titular}</Text>
+                </View>
+                <View style={s.payoutRow}>
+                  <Text style={s.payoutLabel}>MONEDA</Text>
+                  <Text style={s.payoutValue}>{consignment.payoutAccounts[0].moneda}</Text>
+                </View>
+                <TouchableOpacity style={s.payoutChangeBtn} onPress={() => setShowPayoutModal(true)}>
+                  <Text style={s.payoutChangeBtnText}>Cambiar cuenta</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={s.payoutBody}>
+                <Text style={s.payoutInfo}>
+                  Declarás la cuenta bancaria donde recibirás el dinero de la venta. Debe hacerse antes del inicio de la subasta.
+                </Text>
+                <TouchableOpacity style={s.payoutDeclareBtn} onPress={() => setShowPayoutModal(true)} activeOpacity={0.8}>
+                  <Ionicons name="add-circle-outline" size={18} color="#191C1D" />
+                  <Text style={s.payoutDeclareBtnText}>Declarar cuenta de cobro</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
+
+      {/* Modal: Declarar cuenta de cobro */}
+      <Modal visible={showPayoutModal} animationType="slide" transparent onRequestClose={() => setShowPayoutModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={pm.overlay}>
+            <View style={pm.sheet}>
+              <View style={pm.sheetHeader}>
+                <Text style={pm.sheetTitle}>Cuenta de cobro</Text>
+                <TouchableOpacity onPress={() => setShowPayoutModal(false)} hitSlop={12}>
+                  <Ionicons name="close" size={20} color="#474747" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={pm.form}>
+                {[
+                  { key: 'banco', label: 'BANCO', placeholder: 'Banco Galicia' },
+                  { key: 'numeroCuenta', label: 'NÚMERO DE CUENTA / CBU', placeholder: '0720...' },
+                  { key: 'titular', label: 'TITULAR', placeholder: 'Juan Pérez' },
+                  { key: 'moneda', label: 'MONEDA', placeholder: 'ARS / USD' },
+                  { key: 'swiftBic', label: 'SWIFT / BIC (opcional)', placeholder: 'GALVARAB' },
+                  { key: 'iban', label: 'IBAN (opcional)', placeholder: 'AR...' },
+                ].map(({ key, label, placeholder }) => (
+                  <View key={key} style={pm.field}>
+                    <Text style={pm.fieldLabel}>{label}</Text>
+                    <TextInput
+                      style={pm.fieldInput}
+                      value={payoutForm[key as keyof typeof payoutForm]}
+                      onChangeText={(v) => setPayoutForm((prev) => ({ ...prev, [key]: v }))}
+                      placeholder={placeholder}
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={[pm.saveBtn, savingPayout && { opacity: 0.6 }]}
+                onPress={handleSavePayout}
+                disabled={savingPayout}
+                activeOpacity={0.85}
+              >
+                {savingPayout
+                  ? <ActivityIndicator color="#FFF" size="small" />
+                  : <Text style={pm.saveBtnText}>Guardar cuenta</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -392,4 +591,58 @@ const s = StyleSheet.create({
   rejectedTitle: { fontSize: 12, fontFamily: fonts.semiBold, color: '#410002', letterSpacing: 1.2, textTransform: 'uppercase' },
   rejectedNote: { fontSize: 14, fontFamily: fonts.regular, color: '#410002', fontStyle: 'italic', lineHeight: 22 },
   rejectedCost: { fontSize: 13, fontFamily: fonts.semiBold, color: '#410002' },
+
+  // Insurance policy
+  insuranceCard: { marginHorizontal: 16, backgroundColor: '#EDF3FA', borderRadius: 32, borderWidth: 1, borderColor: 'rgba(61,90,128,0.2)', overflow: 'hidden' },
+  insuranceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(61,90,128,0.15)' },
+  insuranceTitle: { fontSize: 12, fontFamily: fonts.bold, color: '#1E3A5F', letterSpacing: 1.2, textTransform: 'uppercase' },
+  insuranceBody: { padding: 24, gap: 10 },
+  insuranceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  insuranceLabel: { fontSize: 10, fontFamily: fonts.semiBold, color: '#3D5A80', letterSpacing: 0.5, textTransform: 'uppercase' },
+  insuranceValue: { fontSize: 13, fontFamily: fonts.medium, color: '#1E3A5F' },
+  insuranceValueBold: { fontSize: 18, fontFamily: fonts.bold, letterSpacing: -0.5 },
+  insuranceDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(61,90,128,0.2)', marginVertical: 4 },
+  insuranceDatesRow: { flexDirection: 'row', gap: 16 },
+  insuranceDateItem: { flex: 1, gap: 3 },
+  insuranceContactRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  insuranceContactText: { fontSize: 13, fontFamily: fonts.regular, color: '#3D5A80' },
+
+  // Payout account
+  payoutCard: { marginHorizontal: 16, backgroundColor: '#FFF', borderRadius: 32, borderWidth: 1, borderColor: '#E4E4E7', overflow: 'hidden' },
+  payoutHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F1F3F4' },
+  payoutTitle: { fontSize: 12, fontFamily: fonts.bold, color: '#191C1D', letterSpacing: 1.2, textTransform: 'uppercase' },
+  payoutBody: { padding: 24, gap: 12 },
+  payoutInfo: { fontSize: 13, fontFamily: fonts.regular, color: '#474747', lineHeight: 20 },
+  payoutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E4E4E7' },
+  payoutLabel: { fontSize: 10, fontFamily: fonts.semiBold, color: '#808A88', letterSpacing: 0.5, textTransform: 'uppercase' },
+  payoutValue: { fontSize: 13, fontFamily: fonts.medium, color: '#191C1D' },
+  payoutDeclareBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F1F3F4', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, marginTop: 4 },
+  payoutDeclareBtnText: { fontSize: 14, fontFamily: fonts.semiBold, color: '#191C1D' },
+  payoutChangeBtn: { alignSelf: 'flex-start', paddingTop: 4 },
+  payoutChangeBtnText: { fontSize: 13, fontFamily: fonts.semiBold, color: '#3B82F6' },
+});
+
+const pm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    paddingTop: 24, paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '85%',
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  sheetTitle: { fontSize: 18, fontFamily: fonts.semiBold, color: '#191C1D', letterSpacing: -0.5 },
+  form: { gap: 16, paddingBottom: 16 },
+  field: { gap: 6 },
+  fieldLabel: { fontSize: 10, fontFamily: fonts.semiBold, color: '#474747', letterSpacing: 0.8, textTransform: 'uppercase' },
+  fieldInput: {
+    backgroundColor: '#F4F5F5', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: 14, fontFamily: fonts.regular, color: '#191C1D',
+    borderWidth: 1, borderColor: '#E4E4E7',
+  },
+  saveBtn: {
+    backgroundColor: '#191C1D', borderRadius: 32,
+    alignItems: 'center', paddingVertical: 16, marginTop: 8,
+  },
+  saveBtnText: { fontSize: 16, fontFamily: fonts.semiBold, color: '#FFF', letterSpacing: -0.4 },
 });
