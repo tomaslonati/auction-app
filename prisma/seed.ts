@@ -294,9 +294,7 @@ async function main() {
       estado: 'en_subasta',
       images: {
         create: [
-          { url: 'https://picsum.photos/seed/reloj1/640/480', orden: 0 },
-          { url: 'https://picsum.photos/seed/reloj2/640/480', orden: 1 },
-          { url: 'https://picsum.photos/seed/reloj3/640/480', orden: 2 },
+          { url: 'https://dcdn-us.mitiendanube.com/stores/004/734/252/products/rolex-black-diseno-7a04e72be4b88cd0a317241731322646-1024-1024.webp', orden: 0 },
         ],
       },
     },
@@ -317,8 +315,8 @@ async function main() {
       historia: 'Obra adquirida en Christie\'s Buenos Aires, 2001. Certificado de autenticidad incluido.',
       images: {
         create: [
-          { url: 'https://picsum.photos/seed/oleo1/640/480', orden: 0 },
-          { url: 'https://picsum.photos/seed/oleo2/640/480', orden: 1 },
+          { url: 'https://http2.mlstatic.com/D_NQ_NP_830058-MLA82770497234_032025-O.webp', orden: 0 },
+          { url: 'https://www.pompeiimuseumshop.it/cdn/shop/files/APOLLO.jpg?v=1777995211&width=2000', orden: 1 },
         ],
       },
     },
@@ -337,8 +335,8 @@ async function main() {
       artistaDisenador: 'Julio Le Parc',
       images: {
         create: [
-          { url: 'https://picsum.photos/seed/escultura1/640/480', orden: 0 },
-          { url: 'https://picsum.photos/seed/escultura2/640/480', orden: 1 },
+          { url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1_6nAQH-nT8tS-2-CY0AL1sNkxY2dwfsM_A&s', orden: 0 },
+          { url: 'https://mla-s1-p.mlstatic.com/659080-MLA31019343156_062019-F.jpg', orden: 1 },
         ],
       },
     },

@@ -3,11 +3,12 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/lib/api';
-import { fonts } from '@/constants/design';
+import { colors, fonts, spacing, shadow } from '@/constants/design';
 
 type PaymentMethodDetail =
   | { tipo: 'cuenta_bancaria'; bankAccount: { banco: string; numeroCuenta: string } }
@@ -19,29 +20,30 @@ type Purchase = {
   montoFinal: number;
   comision: number;
   costoEnvio: number;
-  estadoPago: 'pendiente' | 'pagado' | 'cancelado';
+  estadoPago: 'pendiente' | 'pagado' | 'vencido' | 'judicial';
   retiroPersonal: boolean;
   createdAt: string;
-  item: { id: string; descripcion: string; numeroPieza: number };
+  item: { id: string; descripcion: string; numeroPieza: string };
   paymentMethod: PaymentMethodDetail;
 };
 
 function paymentLabel(pm: PaymentMethodDetail): string {
-  if (pm.tipo === 'cuenta_bancaria') return `Cuenta bancaria — ${pm.bankAccount.banco}`;
+  if (pm.tipo === 'cuenta_bancaria') return `${pm.bankAccount.banco} — ${pm.bankAccount.numeroCuenta}`;
   if (pm.tipo === 'tarjeta_credito') return `${pm.creditCard.marca} ****${pm.creditCard.ultimosCuatro}`;
   return 'Cheque certificado';
 }
 
-const ESTADO_LABEL: Record<Purchase['estadoPago'], string> = {
-  pendiente: 'Pendiente de pago',
-  pagado: 'Pagado',
-  cancelado: 'Cancelado',
-};
+function paymentIcon(pm: PaymentMethodDetail): keyof typeof Ionicons.glyphMap {
+  if (pm.tipo === 'tarjeta_credito') return 'card-outline';
+  if (pm.tipo === 'cheque_certificado') return 'document-text-outline';
+  return 'business-outline';
+}
 
-const ESTADO_COLOR: Record<Purchase['estadoPago'], string> = {
-  pendiente: '#D97706',
-  pagado: '#16A34A',
-  cancelado: '#DC2626',
+const ESTADO_CONFIG: Record<Purchase['estadoPago'], { label: string; color: string; bg: string }> = {
+  pendiente: { label: 'Pendiente de pago', color: colors.warning,  bg: colors.warningBg  },
+  pagado:    { label: 'Pagado',             color: colors.success,  bg: colors.successBg  },
+  vencido:   { label: 'Pago vencido',       color: colors.error,    bg: colors.errorBg    },
+  judicial:  { label: 'En proceso judicial',color: colors.error,    bg: colors.errorBg    },
 };
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
@@ -53,9 +55,14 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
+function SectionLabel({ children }: { children: string }) {
+  return <Text style={s.sectionLabel}>{children}</Text>;
+}
+
 export default function PurchaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
   const [pickingUp, setPickingUp] = useState(false);
@@ -84,8 +91,7 @@ export default function PurchaseDetailScreen() {
               Alert.alert('Error', typeof error === 'string' ? error : 'No se pudo registrar el retiro.');
               return;
             }
-            setPurchase((prev) => prev ? { ...prev, retiroPersonal: true } : prev);
-            Alert.alert('Retiro declarado', 'Tu retiro personal fue registrado. Recordá que ya no contás con cobertura de seguro.');
+            setPurchase(prev => prev ? { ...prev, retiroPersonal: true } : prev);
           },
         },
       ]
@@ -94,26 +100,21 @@ export default function PurchaseDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={s.screen} edges={['top']}>
-        <View style={s.loader}><ActivityIndicator color="#586160" /></View>
-      </SafeAreaView>
+      <LinearGradient colors={['#E8EDEC', '#ABB4B2']} style={s.loaderBg}>
+        <ActivityIndicator color={colors.textSecondary} />
+      </LinearGradient>
     );
   }
 
   if (!purchase) {
     return (
-      <SafeAreaView style={s.screen} edges={['top']}>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="chevron-back" size={20} color="#182D28" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Detalle de compra</Text>
-          <View style={{ width: 20 }} />
-        </View>
-        <View style={s.loader}>
-          <Text style={s.emptyText}>No se encontró la compra</Text>
-        </View>
-      </SafeAreaView>
+      <LinearGradient colors={['#E8EDEC', '#ABB4B2']} style={s.loaderBg}>
+        <Ionicons name="alert-circle-outline" size={40} color={colors.textSecondary} />
+        <Text style={s.emptyText}>No se encontró la compra</Text>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <Text style={s.backBtnText}>Volver</Text>
+        </TouchableOpacity>
+      </LinearGradient>
     );
   }
 
@@ -121,93 +122,99 @@ export default function PurchaseDetailScreen() {
   const fecha = new Date(purchase.createdAt).toLocaleDateString('es-AR', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
+  const estado = ESTADO_CONFIG[purchase.estadoPago] ?? ESTADO_CONFIG.pendiente;
 
   return (
-    <SafeAreaView style={s.screen} edges={['top']}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={20} color="#182D28" />
+    <LinearGradient colors={['#E8EDEC', '#ABB4B2']} style={s.screen}>
+      {/* Hero */}
+      <View style={[s.hero, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity style={s.backFloating} onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="chevron-back" size={16} color="#FFF" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Detalle de compra</Text>
-        <View style={{ width: 20 }} />
+
+        <View style={s.trophyCircle}>
+          <Ionicons name="trophy" size={32} color="#856404" />
+        </View>
+        <Text style={s.heroLabel}>PIEZA ADJUDICADA</Text>
+        <Text style={s.heroPieza}>Pieza #{purchase.item.numeroPieza}</Text>
+        <Text style={s.heroDesc} numberOfLines={2}>{purchase.item.descripcion}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* Item info */}
-        <View style={s.itemCard}>
-          <View style={s.itemIcon}>
-            <Ionicons name="cube-outline" size={28} color="#586160" />
-          </View>
-          <View style={s.itemBody}>
-            <Text style={s.itemPieza}>Pieza #{purchase.item.numeroPieza}</Text>
-            <Text style={s.itemDesc} numberOfLines={3}>{purchase.item.descripcion}</Text>
-          </View>
-        </View>
+      {/* Content card */}
+      <ScrollView
+        style={{ marginTop: -32, flex: 1 }}
+        contentContainerStyle={s.cardContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={s.card}>
 
-        {/* Estado badge */}
-        <View style={[s.estadoBadge, { borderColor: ESTADO_COLOR[purchase.estadoPago] }]}>
-          <View style={[s.estadoDot, { backgroundColor: ESTADO_COLOR[purchase.estadoPago] }]} />
-          <Text style={[s.estadoText, { color: ESTADO_COLOR[purchase.estadoPago] }]}>
-            {ESTADO_LABEL[purchase.estadoPago]}
-          </Text>
-        </View>
-
-        {/* Desglose financiero */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>DESGLOSE DE PAGO</Text>
-          <View style={s.card}>
-            <Row label="Monto pujado" value={`$${Number(purchase.montoFinal).toLocaleString('es-AR')}`} />
-            <View style={s.separator} />
-            <Row label="Comisión" value={`$${Number(purchase.comision).toLocaleString('es-AR')}`} />
-            <View style={s.separator} />
-            <Row
-              label="Costo de envío"
-              value={Number(purchase.costoEnvio) === 0 ? 'Sin cargo' : `$${Number(purchase.costoEnvio).toLocaleString('es-AR')}`}
-            />
-            <View style={s.totalSeparator} />
-            <Row label="TOTAL A PAGAR" value={`$${total.toLocaleString('es-AR')}`} bold />
+          {/* Estado */}
+          <View style={[s.estadoBadge, { backgroundColor: estado.bg }]}>
+            <View style={[s.estadoDot, { backgroundColor: estado.color }]} />
+            <Text style={[s.estadoText, { color: estado.color }]}>{estado.label}</Text>
           </View>
-        </View>
 
-        {/* Medio de pago */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>MEDIO DE PAGO</Text>
-          <View style={s.card}>
-            <View style={s.paymentRow}>
-              <Ionicons
-                name={purchase.paymentMethod.tipo === 'tarjeta_credito' ? 'card-outline' : 'business-outline'}
-                size={20} color="#586160"
+          {/* Precio final destacado */}
+          <View style={s.totalHero}>
+            <Text style={s.totalHeroLabel}>TOTAL A PAGAR</Text>
+            <Text style={s.totalHeroAmount}>${total.toLocaleString('es-AR')}</Text>
+          </View>
+
+          {/* Desglose */}
+          <View style={s.section}>
+            <SectionLabel>DESGLOSE</SectionLabel>
+            <View style={s.breakdownCard}>
+              <Row label="Monto pujado" value={`$${Number(purchase.montoFinal).toLocaleString('es-AR')}`} />
+              <View style={s.divider} />
+              <Row label="Comisión de la casa" value={`$${Number(purchase.comision).toLocaleString('es-AR')}`} />
+              <View style={s.divider} />
+              <Row
+                label="Costo de envío"
+                value={Number(purchase.costoEnvio) === 0 ? 'Sin cargo' : `$${Number(purchase.costoEnvio).toLocaleString('es-AR')}`}
               />
-              <Text style={s.paymentLabel}>{paymentLabel(purchase.paymentMethod)}</Text>
             </View>
           </View>
-        </View>
 
-        {/* Fecha */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>FECHA DE COMPRA</Text>
-          <View style={s.card}>
-            <Row label="Fecha" value={fecha} />
+          {/* Medio de pago */}
+          <View style={s.section}>
+            <SectionLabel>MEDIO DE PAGO</SectionLabel>
+            <View style={s.infoRow}>
+              <View style={s.infoIcon}>
+                <Ionicons name={paymentIcon(purchase.paymentMethod)} size={18} color={colors.textSecondary} />
+              </View>
+              <Text style={s.infoText}>{paymentLabel(purchase.paymentMethod)}</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Retiro personal */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>ENTREGA</Text>
-          <View style={s.card}>
+          {/* Fecha */}
+          <View style={s.section}>
+            <SectionLabel>FECHA DE ADJUDICACIÓN</SectionLabel>
+            <View style={s.infoRow}>
+              <View style={s.infoIcon}>
+                <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+              </View>
+              <Text style={s.infoText}>{fecha}</Text>
+            </View>
+          </View>
+
+          {/* Entrega */}
+          <View style={s.section}>
+            <SectionLabel>ENTREGA</SectionLabel>
             {purchase.retiroPersonal ? (
-              <View style={s.pickupDeclared}>
-                <Ionicons name="warning-outline" size={18} color="#D97706" />
-                <Text style={s.pickupDeclaredText}>
+              <View style={[s.alertBox, { backgroundColor: colors.warningBg }]}>
+                <Ionicons name="warning-outline" size={18} color={colors.warning} />
+                <Text style={[s.alertText, { color: '#92400E' }]}>
                   Retiro personal declarado — sin cobertura de seguro
                 </Text>
               </View>
             ) : (
-              <>
-                <Text style={s.pickupInfo}>
-                  Tu compra será enviada a tu domicilio declarado. Si preferís retirar personalmente, perderás la cobertura del seguro sobre el bien.
-                </Text>
+              <View style={s.deliveryBlock}>
+                <View style={s.infoRow}>
+                  <View style={s.infoIcon}>
+                    <Ionicons name="cube-outline" size={18} color={colors.textSecondary} />
+                  </View>
+                  <Text style={s.infoText}>Envío a tu domicilio declarado</Text>
+                </View>
                 {purchase.estadoPago === 'pagado' && (
                   <TouchableOpacity
                     style={[s.pickupBtn, pickingUp && { opacity: 0.6 }]}
@@ -216,78 +223,127 @@ export default function PurchaseDetailScreen() {
                     activeOpacity={0.8}
                   >
                     {pickingUp
-                      ? <ActivityIndicator color="#586160" size="small" />
+                      ? <ActivityIndicator color={colors.textSecondary} size="small" />
                       : <Text style={s.pickupBtnText}>Declarar retiro personal</Text>
                     }
                   </TouchableOpacity>
                 )}
-              </>
+              </View>
             )}
           </View>
-        </View>
 
-        <View style={{ height: 40 }} />
+          <View style={{ height: spacing.lg }} />
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F7F6' },
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 15, fontFamily: fonts.regular, color: '#808A88' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, height: 56,
-    backgroundColor: '#F5F7F6',
+  screen: { flex: 1 },
+  loaderBg: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  emptyText: { fontSize: 16, fontFamily: fonts.regular, color: colors.textSecondary, textAlign: 'center' },
+  backBtn: {
+    backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 32,
+    paddingVertical: 12, paddingHorizontal: 24,
   },
-  headerTitle: { fontSize: 15, fontFamily: fonts.semiBold, color: '#182D28', letterSpacing: -0.4 },
-  content: { paddingHorizontal: 20, paddingTop: 8, gap: 20, paddingBottom: 20 },
+  backBtnText: { fontSize: 15, fontFamily: fonts.semiBold, color: '#2C3434' },
 
-  itemCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20,
-    flexDirection: 'row', alignItems: 'flex-start', gap: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  hero: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 56,
+    alignItems: 'center',
+    gap: 8,
   },
-  itemIcon: {
-    width: 52, height: 52, borderRadius: 14,
-    backgroundColor: '#E3E9E8', alignItems: 'center', justifyContent: 'center',
+  backFloating: {
+    position: 'absolute', left: spacing.lg, top: 0,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  itemBody: { flex: 1, gap: 4 },
-  itemPieza: { fontSize: 11, fontFamily: fonts.semiBold, color: '#808A88', letterSpacing: 0.5, textTransform: 'uppercase' },
-  itemDesc: { fontSize: 16, fontFamily: fonts.semiBold, color: '#182D28', letterSpacing: -0.5, lineHeight: 22 },
+  trophyCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#FFF9C4',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
+  heroLabel: {
+    fontSize: 10, fontFamily: fonts.bold, color: 'rgba(44,52,52,0.6)',
+    letterSpacing: 2.2, textTransform: 'uppercase',
+  },
+  heroPieza: { fontSize: 13, fontFamily: fonts.medium, color: '#2C3434', letterSpacing: -0.3 },
+  heroDesc: {
+    fontSize: 22, fontFamily: fonts.semiBold, color: '#2C3434',
+    letterSpacing: -1.2, lineHeight: 28, textAlign: 'center',
+  },
+
+  cardContent: { paddingBottom: 32 },
+  card: {
+    backgroundColor: colors.surface, borderRadius: 32,
+    marginHorizontal: 0, padding: spacing.lg, gap: spacing.lg,
+    ...shadow.card,
+  },
 
   estadoBadge: {
     alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
   },
   estadoDot: { width: 7, height: 7, borderRadius: 4 },
   estadoText: { fontSize: 13, fontFamily: fonts.semiBold, letterSpacing: -0.3 },
 
-  section: { gap: 10 },
-  sectionTitle: { fontSize: 10, fontFamily: fonts.bold, color: '#808A88', letterSpacing: 1.2, textTransform: 'uppercase', paddingHorizontal: 4 },
-  card: {
-    backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  totalHero: {
+    backgroundColor: '#E3E9E8', borderRadius: 20,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: 4,
+  },
+  totalHeroLabel: {
+    fontSize: 11, fontFamily: fonts.bold, color: '#586160',
+    letterSpacing: -0.33, textTransform: 'uppercase',
+  },
+  totalHeroAmount: {
+    fontSize: 44, fontFamily: fonts.bold, color: '#2C3434',
+    letterSpacing: -2, lineHeight: 48,
   },
 
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
+  section: { gap: 10 },
+  sectionLabel: {
+    fontSize: 10, fontFamily: fonts.bold, color: colors.textSecondary,
+    letterSpacing: 1.4, textTransform: 'uppercase', paddingHorizontal: 4,
+  },
+
+  breakdownCard: {
+    backgroundColor: '#F1F4F3', borderRadius: 20,
+    paddingHorizontal: spacing.lg, paddingVertical: 4,
+  },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: 14,
+  },
   rowLabel: { fontSize: 14, fontFamily: fonts.regular, color: '#586160' },
   rowValue: { fontSize: 14, fontFamily: fonts.semiBold, color: '#2C3434' },
   rowValueBold: { fontSize: 17, fontFamily: fonts.bold, color: '#182D28', letterSpacing: -0.5 },
-  separator: { height: 1, backgroundColor: '#F0F4F3' },
-  totalSeparator: { height: 1, backgroundColor: '#C8D0CE', marginTop: 4 },
+  divider: { height: 1, backgroundColor: 'rgba(171,180,179,0.2)' },
 
-  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  paymentLabel: { fontSize: 14, fontFamily: fonts.regular, color: '#2C3434' },
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#F1F4F3', borderRadius: 16,
+    paddingHorizontal: spacing.md, paddingVertical: 14,
+  },
+  infoIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: '#E3E9E8', alignItems: 'center', justifyContent: 'center',
+  },
+  infoText: { fontSize: 14, fontFamily: fonts.regular, color: '#2C3434', flex: 1 },
 
-  pickupInfo: { fontSize: 13, fontFamily: fonts.regular, color: '#586160', lineHeight: 20, paddingVertical: 14 },
-  pickupDeclared: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  pickupDeclaredText: { fontSize: 13, fontFamily: fonts.medium, color: '#D97706', flex: 1, lineHeight: 18 },
+  alertBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    borderRadius: 16, paddingHorizontal: spacing.md, paddingVertical: 14,
+  },
+  alertText: { fontSize: 13, fontFamily: fonts.medium, flex: 1, lineHeight: 18 },
+
+  deliveryBlock: { gap: 10 },
   pickupBtn: {
-    backgroundColor: '#F1F4F3', borderRadius: 14, paddingVertical: 12,
-    alignItems: 'center', marginBottom: 10,
+    backgroundColor: '#F1F4F3', borderRadius: 14,
+    paddingVertical: 13, alignItems: 'center',
   },
   pickupBtnText: { fontSize: 13, fontFamily: fonts.semiBold, color: '#586160', letterSpacing: -0.3 },
 });
