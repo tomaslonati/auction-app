@@ -111,8 +111,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
-    const bid = await prisma.bid.create({
-      data: { subastaId: auctionId, itemId, userId, paymentMethodId, monto },
+    const bid = await prisma.$transaction(async (tx) => {
+      // Marcar todas las pujas confirmadas anteriores del ítem como superadas
+      await tx.bid.updateMany({
+        where: { itemId, estado: 'confirmada' },
+        data: { estado: 'superada' },
+      })
+
+      // Crear la nueva puja directamente confirmada
+      return tx.bid.create({
+        data: { subastaId: auctionId, itemId, userId, paymentMethodId, monto, estado: 'confirmada' },
+      })
     })
 
     return NextResponse.json({ data: bid, error: null }, { status: 201 })
