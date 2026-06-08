@@ -9,6 +9,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const item = await prisma.item.findFirst({
       where: { subastaId: auctionId, estado: 'en_subasta' },
+      orderBy: { numeroPieza: 'asc' },
       include: {
         images: { orderBy: { orden: 'asc' } },
         components: true,

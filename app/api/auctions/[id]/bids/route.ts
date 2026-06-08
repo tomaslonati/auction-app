@@ -69,17 +69,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
-    // REGLA 7: No puede haber una puja enviada (pendiente) para el mismo ítem
-    const pendingBid = await prisma.bid.findFirst({
-      where: { userId, itemId, estado: 'enviada' },
-    })
-    if (pendingBid) {
-      return NextResponse.json({ data: null, error: 'Ya tenés una puja pendiente para este ítem' }, { status: 409 })
-    }
-
     const item = await prisma.item.findUnique({ where: { id: itemId } })
     if (!item || item.subastaId !== auctionId) {
       return NextResponse.json({ data: null, error: 'Ítem no encontrado en esta subasta' }, { status: 404 })
+    }
+    if (item.estado !== 'en_subasta') {
+      return NextResponse.json({ data: null, error: 'Este ítem no está en subasta actualmente' }, { status: 422 })
     }
 
     const lastConfirmedBid = await prisma.bid.findFirst({

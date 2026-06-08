@@ -27,7 +27,8 @@ type ActiveBid = {
     item: { id: string; descripcion: string; numeroPieza: number };
     miMejorPuja: { monto: number; estado: string };
     mejorPujaActual: number | null;
-    situacion: 'ganando' | 'superada' | 'pendiente';
+    situacion: 'ganando' | 'ganado' | 'superada' | 'pendiente';
+    purchaseId: string | null;
   }[];
 };
 
@@ -141,10 +142,11 @@ const ap = StyleSheet.create({
 });
 
 const SITUACION_LABELS: Record<string, string> = {
-  ganando: 'GANANDO', superada: 'SUPERADA', pendiente: 'PENDIENTE',
+  ganando: 'GANANDO', ganado: 'GANADO', superada: 'SUPERADA', pendiente: 'PENDIENTE',
 };
 const SITUACION_COLORS: Record<string, { bg: string; text: string }> = {
   ganando: { bg: '#EEFDF3', text: '#00A63D' },
+  ganado: { bg: '#EEFDF3', text: '#00A63D' },
   superada: { bg: '#FEF2F2', text: '#DC2626' },
   pendiente: { bg: '#FFFBEB', text: '#D97706' },
 };
@@ -282,7 +284,13 @@ export default function HomeScreen() {
                   <BidCard
                     key={i}
                     bid={bid}
-                    onPress={() => router.push(`/(app)/auction/${bid.auctionId}/room` as never)}
+                    onPress={() => {
+                      if (bid.situacion === 'ganado' && bid.purchaseId) {
+                        router.push(`/(app)/purchase/${bid.purchaseId}` as never);
+                      } else {
+                        router.push(`/(app)/auction/${bid.auctionId}/room` as never);
+                      }
+                    }}
                   />
                 ))}
               </ScrollView>

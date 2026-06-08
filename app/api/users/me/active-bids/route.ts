@@ -27,16 +27,21 @@ export async function GET(request: NextRequest) {
     const itemIds = [...new Set(userBids.map((b) => b.itemId))]
 
     // Current top confirmed bid per item (to know who is winning)
-    const topBids = await prisma.bid.findMany({
-      where: {
-        itemId: { in: itemIds },
-        estado: 'confirmada',
-      },
-      orderBy: { monto: 'desc' },
-      distinct: ['itemId'],
-    })
+    const [topBids, purchases] = await Promise.all([
+      prisma.bid.findMany({
+        where: { itemId: { in: itemIds }, estado: 'confirmada' },
+        orderBy: { monto: 'desc' },
+        distinct: ['itemId'],
+      }),
+      prisma.purchase.findMany({
+        where: { compradorUserId: userId, itemId: { in: itemIds } },
+        select: { id: true, itemId: true },
+      }),
+    ])
 
     const topBidByItem = new Map(topBids.map((b) => [b.itemId, b]))
+    const purchaseByItem = new Map(purchases.map((p) => [p.itemId, p.id]))
+    const wonItemIds = new Set(purchases.map((p) => p.itemId))
 
     // Group user bids by auction, then by item — keep only best bid per item
     const byAuction = new Map<string, {
@@ -65,16 +70,17 @@ export async function GET(request: NextRequest) {
       const topMonto = topBid ? Number(topBid.monto) : null
       const miMonto = Number(bid.monto)
 
-      let situacion: 'ganando' | 'superada' | 'pendiente'
+      let situacion: 'ganando' | 'ganado' | 'superada' | 'pendiente'
 
-      if (bid.estado === 'superada') {
+      if (wonItemIds.has(bid.itemId)) {
+        situacion = 'ganado'
+      } else if (bid.estado === 'superada') {
         situacion = 'superada'
       } else if (bid.estado === 'confirmada' && topBid?.userId === userId) {
         situacion = 'ganando'
       } else if (bid.estado === 'enviada') {
         situacion = 'pendiente'
       } else {
-        // confirmada but someone else has a higher confirmed bid
         situacion = topMonto !== null && miMonto < topMonto ? 'superada' : 'ganando'
       }
 
@@ -88,6 +94,7 @@ export async function GET(request: NextRequest) {
         },
         mejorPujaActual: topMonto,
         situacion,
+        purchaseId: purchaseByItem.get(bid.itemId) ?? null,
       })
     }
 

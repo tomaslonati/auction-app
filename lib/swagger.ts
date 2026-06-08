@@ -631,6 +631,19 @@ Ejemplo: precioBase=10000, ultimaOferta=15000 → máximo=17000
           responses: { 200: { description: 'Depósito y sector' }, 404: { description: 'No está en depósito aún' } },
         },
       },
+      '/admin/auctions/{id}/close': {
+        post: {
+          tags: ['Admin'],
+          summary: 'Cerrar subasta manualmente',
+          description: 'Finaliza la subasta. Los ítems que aún estén en_subasta o pendiente quedan sin_postor.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            200: { description: 'Subasta finalizada' },
+            400: { description: 'La subasta no está activa' },
+            404: { description: 'Subasta no encontrada' },
+          },
+        },
+      },
       '/admin/auctions/{id}/items/{itemId}/adjudicate': {
         post: {
           tags: ['Admin'],

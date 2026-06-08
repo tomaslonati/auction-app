@@ -118,13 +118,26 @@ export async function POST(
     // Advance next item to en_subasta
     const nextItem = await prisma.item.findFirst({
       where: { subastaId: auctionId, estado: 'pendiente' },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { numeroPieza: 'asc' },
     })
     if (nextItem) {
       await prisma.item.update({ where: { id: nextItem.id }, data: { estado: 'en_subasta' } })
     }
 
-    return NextResponse.json({ data: { purchase, nextItem }, error: null }, { status: 201 })
+    // Auto-close auction when no more items remain active
+    const remainingItems = await prisma.item.count({
+      where: { subastaId: auctionId, estado: { in: ['en_subasta', 'pendiente'] } },
+    })
+    let auctionClosed = false
+    if (remainingItems === 0) {
+      await prisma.auction.update({
+        where: { id: auctionId },
+        data: { estado: 'finalizada', fechaFin: new Date() },
+      })
+      auctionClosed = true
+    }
+
+    return NextResponse.json({ data: { purchase, nextItem, auctionClosed }, error: null }, { status: 201 })
   } catch (err: unknown) {
     const status = (err as { status?: number }).status ?? 500
     const message = err instanceof Error ? err.message : 'Internal server error'

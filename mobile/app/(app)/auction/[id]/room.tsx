@@ -157,6 +157,7 @@ export default function AuctionRoomScreen() {
   const [hasPendingPenalty, setHasPendingPenalty] = useState(false);
   const [myPurchase, setMyPurchase] = useState<MyPurchase | null>(null);
   const fallbackRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentItemDescRef = useRef<string>('');
 
   const timer = useServerTimer(auction?.fechaFin ?? null);
   const isRoomEnded = auction?.estado === 'finalizada' || auction?.estado === 'cancelada';
@@ -187,6 +188,7 @@ export default function AuctionRoomScreen() {
       api.get<Auction>(`/api/auctions/${id}`),
     ]);
     setCurrentData(itemRes.data);
+    if (itemRes.data) currentItemDescRef.current = itemRes.data.item.descripcion;
     if (auctionRes.data) setAuction(auctionRes.data);
     if (itemRes.data) {
       const { data: bidData } = await api.get<Bid[]>(`/api/auctions/${id}/catalog/${itemRes.data.item.id}/bids`);
@@ -250,25 +252,22 @@ export default function AuctionRoomScreen() {
       // Compra generada → muestra modal de adjudicación y refresca
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'purchases', filter: `subasta_id=eq.${id}` },
+        { event: 'INSERT', schema: 'public', table: 'purchases', filter: `subastaId=eq.${id}` },
         (payload) => {
           const rec = payload.new as {
             id: string;
-            comprador_user_id: string;
-            monto_final: number;
+            compradorUserId: string;
+            montoFinal: number;
             comision: number;
-            costo_envio: number;
+            costoEnvio: number;
           };
-          setCurrentData((prev) => {
-            setAdjudication({
-              won: rec.comprador_user_id === user?.id,
-              purchaseId: rec.id,
-              itemDesc: prev?.item.descripcion ?? '',
-              montoFinal: rec.monto_final,
-              comision: rec.comision,
-              costoEnvio: rec.costo_envio,
-            });
-            return prev;
+          setAdjudication({
+            won: rec.compradorUserId === user?.id,
+            purchaseId: rec.id,
+            itemDesc: currentItemDescRef.current,
+            montoFinal: rec.montoFinal,
+            comision: rec.comision,
+            costoEnvio: rec.costoEnvio,
           });
           // El ítem UPDATE ya va a disparar poll(), pero dejamos el timeout como respaldo
           setTimeout(() => poll(), 1500);
@@ -484,6 +483,13 @@ export default function AuctionRoomScreen() {
               <Text style={s.currentBidLabel}>{isRoomEnded ? 'PRECIO FINAL' : 'PUJA ACTUAL'}</Text>
               <Text style={s.currentBidAmount}>${currentBid.toLocaleString('es-AR')}</Text>
             </View>
+
+            {!isRoomEnded && highestBid?.userId === user?.id && (
+              <View style={s.leadingBanner}>
+                <Ionicons name="checkmark-circle" size={14} color="#00A63D" />
+                <Text style={s.leadingBannerText}>TU PUJA LIDERA</Text>
+              </View>
+            )}
 
             {isRoomEnded ? (
               <View style={s.endedRow}>
@@ -811,6 +817,8 @@ const s = StyleSheet.create({
   rangeDivider: { width: 1, backgroundColor: 'rgba(171,180,179,0.3)', marginHorizontal: 12 },
   rangeLabel: { fontSize: 9, fontFamily: fonts.bold, color: '#808A88', letterSpacing: 0.9, textTransform: 'uppercase' },
   rangeValue: { fontSize: 13, fontFamily: fonts.semiBold, color: '#2C3434', letterSpacing: -0.3 },
+  leadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EEFDF3', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  leadingBannerText: { fontSize: 11, fontFamily: fonts.bold, color: '#00A63D', letterSpacing: 0.6 },
   endedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(171,180,179,0.2)', paddingTop: 12 },
   reserveRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(171,180,179,0.2)', paddingTop: 5 },
   reserveText: { fontSize: 12, fontFamily: fonts.semiBold, color: '#586160', letterSpacing: 0.6, textTransform: 'uppercase' },

@@ -81,6 +81,7 @@ async function main() {
   const inSq = (ids: string[]) => ids.map(lit).join(', ')
 
   // Respetar orden de FKs: de hijos a padres
+  await prisma.$executeRawUnsafe(`DELETE FROM penalties                   WHERE "purchaseId"       IN (SELECT id FROM purchases WHERE "subastaId" IN (${inSq(ALL_AUCTION_IDS)}))`)
   await prisma.$executeRawUnsafe(`DELETE FROM penalties                   WHERE id                 = ${lit(PENALTY_CHARLIE_ID)}`)
   await prisma.$executeRawUnsafe(`DELETE FROM purchases                   WHERE "subastaId"        IN (${inSq(ALL_AUCTION_IDS)})`)
   await prisma.$executeRawUnsafe(`DELETE FROM bids                        WHERE "itemId"           IN (${inSq(ALL_ITEM_IDS)})`)
