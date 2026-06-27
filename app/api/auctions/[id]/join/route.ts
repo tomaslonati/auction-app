@@ -41,8 +41,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ data: null, error: 'Already in an active auction session' }, { status: 409 })
     }
 
+    // Determinar si el usuario puede pujar (tiene al menos un medio de pago verificado)
+    const verifiedPaymentMethod = await prisma.paymentMethod.findFirst({
+      where: { userId, estado: 'verificado' },
+    })
+    const esPostor = verifiedPaymentMethod !== null
+
+    // Asignar número de postor si corresponde
+    let numeroPostor: number | null = null
+    if (esPostor) {
+      const postoresActivos = await prisma.auctionSession.count({
+        where: { auctionId, numeroPostor: { not: null } },
+      })
+      numeroPostor = postoresActivos + 1
+    }
+
     const session = await prisma.auctionSession.create({
-      data: { userId, auctionId },
+      data: { userId, auctionId, numeroPostor },
     })
 
     const currentItem = await prisma.item.findFirst({
@@ -58,7 +73,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       : null
 
     return NextResponse.json({
-      data: { session, currentItem, highestBid },
+      data: {
+        session,
+        tipo: esPostor ? 'postor' : 'espectador',
+        numeroPostor,
+        currentItem,
+        highestBid,
+      },
       error: null,
     }, { status: 201 })
   } catch (err: unknown) {

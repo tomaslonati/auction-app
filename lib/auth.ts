@@ -32,6 +32,22 @@ export async function requireAuth(request: NextRequest): Promise<{ userId: strin
   return { userId: user.id }
 }
 
-export async function requireAdmin(_request: NextRequest): Promise<{ userId: string }> {
-  return { userId: 'admin' }
+export async function requireAdmin(request: NextRequest): Promise<{ userId: string }> {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw Object.assign(new Error('Missing or invalid authorization header'), { status: 401 })
+  }
+
+  const token = authHeader.slice(7)
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+
+  if (error || !user) {
+    throw Object.assign(new Error('Invalid or expired token'), { status: 401 })
+  }
+
+  if (user.app_metadata?.role !== 'admin') {
+    throw Object.assign(new Error('Forbidden: admin access required'), { status: 403 })
+  }
+
+  return { userId: user.id }
 }

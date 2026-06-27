@@ -142,6 +142,26 @@ async function main() {
   // ── 3. Usuarios (Supabase Auth + DB) ─────────────────────────────────────
   console.log('👤 Creando usuarios...')
 
+  // ── Admin (solo Supabase Auth, sin registro en tabla users) ─────────────────
+  const adminEmail    = 'admin@auction.test'
+  const adminPassword = 'admin1234!'
+  const existingAdmin = authByEmail.get(adminEmail)
+  if (existingAdmin) {
+    await supabase.auth.admin.updateUserById(existingAdmin, {
+      password: adminPassword,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
+    })
+  } else {
+    await supabase.auth.admin.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
+    })
+  }
+  console.log(`   ✓ ${adminEmail}  [admin]`)
+
   const seedUsers = [
     { email: 'alice@auction.test',   password: 'alice1234!',  nombre: 'Alice',   apellido: 'García',    categoria: 'oro'     as const, estado: 'aprobado'               as const, registroCompletado: true  },
     { email: 'bob@auction.test',     password: 'bob12345!',   nombre: 'Bob',     apellido: 'Martínez',  categoria: 'comun'   as const, estado: 'aprobado'               as const, registroCompletado: true  },
@@ -809,6 +829,7 @@ async function main() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('📋 CREDENCIALES')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log(`  admin@auction.test   / admin1234!   → ADMIN`)
   console.log(`  alice@auction.test   / alice1234!   → oro, aprobado`)
   console.log(`  bob@auction.test     / bob12345!    → comun, aprobado`)
   console.log(`  diana@auction.test   / diana123!    → platino, aprobado`)
